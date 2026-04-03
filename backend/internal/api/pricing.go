@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"google-ai-proxy/internal/config"
 	"google-ai-proxy/internal/provider"
 
 	"github.com/gin-gonic/gin"
@@ -10,11 +11,12 @@ import (
 
 // Model IDs
 const (
-	ModelNanobanana  = "gemini-3-pro-image-preview"
-	ModelNanobanana2 = "gemini-3.1-flash-image-preview"
-	ModelSeedream45  = "doubao-seedream-4-5"
-	ModelSeedance15  = "doubao-seedance-1-5-pro-251215"
-	ModelVeo31       = "veo-3.1-generate-preview"
+	ModelNanobanana        = "gemini-3-pro-image-preview"
+	ModelNanobanana2       = "gemini-3.1-flash-image-preview"
+	ModelOpenAICompatImage = provider.OpenAICompatibleImageModelID
+	ModelSeedream45        = "doubao-seedream-4-5"
+	ModelSeedance15        = "doubao-seedance-1-5-pro-251215"
+	ModelVeo31             = "veo-3.1-generate-preview"
 )
 
 var ModelDisplayNames = map[string]string{
@@ -26,6 +28,9 @@ var ModelDisplayNames = map[string]string{
 }
 
 func GetModelDisplayName(model string) string {
+	if model == ModelOpenAICompatImage {
+		return config.GetOpenAICompatImageDisplayName()
+	}
 	if name, ok := ModelDisplayNames[model]; ok {
 		return name
 	}
@@ -45,6 +50,9 @@ var ImagePricingConfig = map[string]map[string]int{
 		"1K":   6,
 		"2K":   8,
 		"4K":   12,
+	},
+	ModelOpenAICompatImage: {
+		"1K": 10,
 	},
 	ModelSeedream45: {
 		"2K": 6,
@@ -71,6 +79,10 @@ const DefaultEcommerceModel = ModelSeedream45
 
 // GetImageCredits returns image generation credits
 func GetImageCredits(model, size string) int {
+	if model == ModelOpenAICompatImage {
+		return config.GetOpenAICompatImageCredits()
+	}
+
 	modelPricing, ok := ImagePricingConfig[model]
 	if !ok {
 		return 10
@@ -100,39 +112,51 @@ func GetEcommerceCredits(size string, count int) int {
 
 // GetPricing returns complete pricing config
 func GetPricing(c *gin.Context) {
-	pricing := gin.H{
-		"image": []gin.H{
-			{
-				"model":       ModelNanobanana,
-				"model_name":  GetModelDisplayName(ModelNanobanana),
-				"description": "基于 Gemini 3 Pro",
-				"prices": []gin.H{
-					{"size": "1K", "credits": ImagePricingConfig[ModelNanobanana]["1K"], "description": "1024x1024"},
-					{"size": "2K", "credits": ImagePricingConfig[ModelNanobanana]["2K"], "description": "2048x2048"},
-					{"size": "4K", "credits": ImagePricingConfig[ModelNanobanana]["4K"], "description": "4096x4096"},
-				},
-			},
-			{
-				"model":       ModelNanobanana2,
-				"model_name":  GetModelDisplayName(ModelNanobanana2),
-				"description": "基于 Gemini 3.1 Flash",
-				"prices": []gin.H{
-					{"size": "0.5K", "credits": ImagePricingConfig[ModelNanobanana2]["0.5K"], "description": "512x512"},
-					{"size": "1K", "credits": ImagePricingConfig[ModelNanobanana2]["1K"], "description": "1024x1024"},
-					{"size": "2K", "credits": ImagePricingConfig[ModelNanobanana2]["2K"], "description": "2048x2048"},
-					{"size": "4K", "credits": ImagePricingConfig[ModelNanobanana2]["4K"], "description": "4096x4096"},
-				},
-			},
-			{
-				"model":       ModelSeedream45,
-				"model_name":  GetModelDisplayName(ModelSeedream45),
-				"description": "火山引擎图像模型",
-				"prices": []gin.H{
-					{"size": "2K", "credits": ImagePricingConfig[ModelSeedream45]["2K"], "description": "2048x2048"},
-					{"size": "4K", "credits": ImagePricingConfig[ModelSeedream45]["4K"], "description": "4096x4096"},
-				},
+	imagePricing := []gin.H{
+		{
+			"model":       ModelNanobanana,
+			"model_name":  GetModelDisplayName(ModelNanobanana),
+			"description": "基于 Gemini 3 Pro",
+			"prices": []gin.H{
+				{"size": "1K", "credits": ImagePricingConfig[ModelNanobanana]["1K"], "description": "1024x1024"},
+				{"size": "2K", "credits": ImagePricingConfig[ModelNanobanana]["2K"], "description": "2048x2048"},
+				{"size": "4K", "credits": ImagePricingConfig[ModelNanobanana]["4K"], "description": "4096x4096"},
 			},
 		},
+		{
+			"model":       ModelNanobanana2,
+			"model_name":  GetModelDisplayName(ModelNanobanana2),
+			"description": "基于 Gemini 3.1 Flash",
+			"prices": []gin.H{
+				{"size": "0.5K", "credits": ImagePricingConfig[ModelNanobanana2]["0.5K"], "description": "512x512"},
+				{"size": "1K", "credits": ImagePricingConfig[ModelNanobanana2]["1K"], "description": "1024x1024"},
+				{"size": "2K", "credits": ImagePricingConfig[ModelNanobanana2]["2K"], "description": "2048x2048"},
+				{"size": "4K", "credits": ImagePricingConfig[ModelNanobanana2]["4K"], "description": "4096x4096"},
+			},
+		},
+		{
+			"model":       ModelSeedream45,
+			"model_name":  GetModelDisplayName(ModelSeedream45),
+			"description": "火山引擎图像模型",
+			"prices": []gin.H{
+				{"size": "2K", "credits": ImagePricingConfig[ModelSeedream45]["2K"], "description": "2048x2048"},
+				{"size": "4K", "credits": ImagePricingConfig[ModelSeedream45]["4K"], "description": "4096x4096"},
+			},
+		},
+	}
+	if config.GetOpenAICompatImageModel() != "" {
+		imagePricing = append(imagePricing, gin.H{
+			"model":       ModelOpenAICompatImage,
+			"model_name":  GetModelDisplayName(ModelOpenAICompatImage),
+			"description": "基于 OpenAI 兼容图片接口",
+			"prices": []gin.H{
+				{"size": "1K", "credits": config.GetOpenAICompatImageCredits(), "description": "1024x1024 / 1536x1024 / 1024x1536"},
+			},
+		})
+	}
+
+	pricing := gin.H{
+		"image": imagePricing,
 		"video": gin.H{
 			"base_per_second":     VideoPricingConfig.BasePerSecond,
 			"audio_multiplier":    VideoPricingConfig.AudioMultiplier,

@@ -232,7 +232,7 @@ watch(
         </template>
         <div class="community-popover">
           <div class="community-qr">
-            <img src="/images/qrcode.jpg" :alt="$t('sidebar.communityTitle')" class="qr-image" />
+            <!-- <img src="/images/qrcode.jpg" :alt="$t('sidebar.communityTitle')" class="qr-image" /> -->
           </div>
           <div class="community-body">
             <div class="community-title">{{ $t('sidebar.communityTitle') }}</div>

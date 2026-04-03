@@ -322,7 +322,7 @@ const handleStart = () => {
       <div class="section-container animate-on-scroll">
         <div class="community-card">
           <div class="community-qr">
-            <img src="/images/qrcode.jpg" alt="微信群二维码" class="qr-image" />
+            <!-- <img src="/images/qrcode.jpg" alt="微信群二维码" class="qr-image" /> -->
           </div>
           <div class="community-info">
             <h3 class="community-title">{{ $t('landing.communityTitle') }}</h3>

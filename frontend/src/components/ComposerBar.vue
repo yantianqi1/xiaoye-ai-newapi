@@ -6,6 +6,7 @@ import { useUserStore } from '../stores/user'
 import { useGenerate } from '../composables/useGenerate'
 import { usePricingStore } from '../stores/pricing'
 import { useModelsStore } from '../stores/models'
+import { filterRatiosForModel } from '../utils/imageModelCapabilities'
 
 const { t } = useI18n()
 
@@ -111,9 +112,7 @@ watch(selectedModel, (newModel) => {
     imageSize.value = availableSizes[0].value
   }
   // 切换模型时更新可用宽高比
-  const newRatios = safeModelId === 'gemini-3.1-flash-image-preview'
-    ? [...baseImageRatios, ...extraFlashRatios]
-    : baseImageRatios
+  const newRatios = filterRatiosForModel(safeModelId, baseImageRatios, extraFlashRatios)
   imageRatios.value = newRatios
   if (!newRatios.some(r => r.value === aspectRatio.value)) {
     aspectRatio.value = '1:1'

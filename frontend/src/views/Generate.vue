@@ -8,15 +8,18 @@ import { useGenerationStore } from '../stores/generation'
 import { useGenerate } from '../composables/useGenerate'
 import { useInspiration } from '../composables/useInspiration'
 import { useComposerDraftStore } from '../stores/composerDraft'
+import { useModelsStore } from '../stores/models'
 import ComposerBar from '../components/ComposerBar.vue'
 import ShareGenerationDialog from '../components/ShareGenerationDialog.vue'
 import ImageEditor from '../components/ImageEditor.vue'
+import { modelSupportsInpainting } from '../utils/imageModelCapabilities'
 
 const { t } = useI18n()
 const router = useRouter()
 const userStore = useUserStore()
 const genStore = useGenerationStore()
 const composerDraftStore = useComposerDraftStore()
+const modelsStore = useModelsStore()
 const message = useMessage()
 const { generate, pollVideoTask, pollTask, stopAllPolls, uploadImageToOSS } = useGenerate()
 const { markRemix, shareGeneration, unshareInspiration } = useInspiration()
@@ -35,8 +38,12 @@ const shareLoading = ref(false)
 const showImageEditor = ref(false)
 const imageEditorSrc = ref('')
 const imageEditorRef = ref(null)
+const imageEditModelId = ref('gemini-3-pro-image-preview')
 
 onMounted(async () => {
+  if (!modelsStore.loaded) {
+    await modelsStore.loadModels()
+  }
   if (!genStore.hasLoaded) {
     await genStore.load(true)
   }
@@ -233,11 +240,17 @@ const regenerate = (gen) => {
 }
 
 const editImage = (imageUrl) => {
+  const modelId = getCurrentImageModelId()
+  if (!modelSupportsInpainting(modelId)) {
+    message.error('当前选中的模型不支持局部重绘，请切换到 Nanobanana 或 OpenAI Compatible Image')
+    return
+  }
+  imageEditModelId.value = modelId
   imageEditorSrc.value = imageUrl
   showImageEditor.value = true
 }
 
-const handleInpaintSubmit = async ({ originalImageUrl, maskBase64, prompt: editorPrompt, aspectRatio: aratio, imageSize: isize }) => {
+const handleInpaintSubmit = async ({ originalImageUrl, maskBase64, prompt: editorPrompt, modelId, aspectRatio: aratio, imageSize: isize }) => {
   try {
     // Upload mask to OSS
     const maskOssUrl = await uploadImageToOSS(maskBase64)
@@ -251,7 +264,7 @@ const handleInpaintSubmit = async ({ originalImageUrl, maskBase64, prompt: edito
       images: [],
       video_url: null,
       credits_cost: 0,
-      params: { model: 'gemini-3-pro-image-preview', mode: 'inpainting', aspectRatio: aratio, imageSize: isize },
+      params: { model: modelId, mode: 'inpainting', aspectRatio: aratio, imageSize: isize },
       reference_images: [originalImageUrl]
     })
     currentResults.value.push(resultItem)
@@ -264,7 +277,7 @@ const handleInpaintSubmit = async ({ originalImageUrl, maskBase64, prompt: edito
       prompt: editorPrompt,
       images: [originalImageUrl],
       mask: maskOssUrl,
-      model: 'gemini-3-pro-image-preview',
+      model: modelId,
       params: {
         aspectRatio: aratio || '1:1',
         imageSize: isize || '2K'
@@ -282,6 +295,11 @@ const handleInpaintSubmit = async ({ originalImageUrl, maskBase64, prompt: edito
     if (imageEditorRef.value) imageEditorRef.value.setGenerating(false)
     scrollToBottom(true)
   }
+}
+
+function getCurrentImageModelId() {
+  const savedModelId = localStorage.getItem('selectedModel') || modelsStore.defaultModelId || 'gemini-3-pro-image-preview'
+  return modelsStore.ensureModelId(savedModelId)
 }
 
 const openImageToSvg = (imageUrl) => {
@@ -701,6 +719,7 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
       ref="imageEditorRef"
       v-model:show="showImageEditor"
       :image-src="imageEditorSrc"
+      :model-id="imageEditModelId"
       @submit="handleInpaintSubmit"
     />
   </div>

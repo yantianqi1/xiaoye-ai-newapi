@@ -3,11 +3,54 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // GetGoogleAPIKey 获取 Google API Key。
 func GetGoogleAPIKey() string {
 	return os.Getenv("GOOGLE_API_KEY")
+}
+
+// GetOpenAICompatBaseURL 获取 OpenAI 兼容图片接口基础地址。
+func GetOpenAICompatBaseURL() string {
+	return strings.TrimSpace(os.Getenv("OPENAI_COMPAT_BASE_URL"))
+}
+
+// GetOpenAICompatAPIKey 获取 OpenAI 兼容图片接口密钥。
+func GetOpenAICompatAPIKey() string {
+	return strings.TrimSpace(os.Getenv("OPENAI_COMPAT_API_KEY"))
+}
+
+// GetOpenAICompatImageModel 获取 OpenAI 兼容图片上游模型名。
+func GetOpenAICompatImageModel() string {
+	return strings.TrimSpace(os.Getenv("OPENAI_COMPAT_IMAGE_MODEL"))
+}
+
+// GetOpenAICompatImageDisplayName 获取 OpenAI 兼容图片模型展示名。
+func GetOpenAICompatImageDisplayName() string {
+	displayName := strings.TrimSpace(os.Getenv("OPENAI_COMPAT_IMAGE_DISPLAY_NAME"))
+	if displayName != "" {
+		return displayName
+	}
+	model := GetOpenAICompatImageModel()
+	if model != "" {
+		return model
+	}
+	return "OpenAI Compatible Image"
+}
+
+// GetOpenAICompatImageCredits 获取 OpenAI 兼容图片模型 1K 档默认钻石价格。
+func GetOpenAICompatImageCredits() int {
+	value := strings.TrimSpace(os.Getenv("OPENAI_COMPAT_IMAGE_CREDITS"))
+	if value == "" {
+		return 10
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return 10
+	}
+	return parsed
 }
 
 // GetDeepSeekAPIKey 获取 DeepSeek API Key。

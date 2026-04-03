@@ -3,10 +3,12 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/user'
 import { usePricingStore } from '../stores/pricing'
+import { filterRatiosForModel } from '../utils/imageModelCapabilities'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  imageSrc: { type: String, default: '' }
+  imageSrc: { type: String, default: '' },
+  modelId: { type: String, default: 'gemini-3-pro-image-preview' }
 })
 
 const emit = defineEmits(['update:show', 'submit'])
@@ -27,9 +29,9 @@ const aspectRatio = ref('1:1')
 const imageSize = ref('2K')
 const showRatioPanel = ref(false)
 
-const lockedModel = 'gemini-3-pro-image-preview'
+const lockedModel = computed(() => props.modelId || 'gemini-3-pro-image-preview')
 
-const imageRatios = [
+const baseImageRatios = [
   { value: '1:1', w: 16, h: 16 },
   { value: '3:4', w: 12, h: 16 },
   { value: '4:3', w: 16, h: 12 },
@@ -42,10 +44,12 @@ const imageRatios = [
   { value: '21:9', w: 20, h: 8 }
 ]
 
-const imageSizeOptions = computed(() => pricingStore.getImageSizeOptions(lockedModel))
+const imageRatios = computed(() => filterRatiosForModel(lockedModel.value, baseImageRatios))
+
+const imageSizeOptions = computed(() => pricingStore.getImageSizeOptions(lockedModel.value))
 
 const currentCredits = computed(() => {
-  return pricingStore.getImageCredits(lockedModel, imageSize.value)
+  return pricingStore.getImageCredits(lockedModel.value, imageSize.value)
 })
 
 // Canvas state
@@ -109,6 +113,19 @@ watch(() => props.show, (val) => {
     })
   }
 })
+
+watch([lockedModel, imageSizeOptions], () => {
+  const sizeExists = imageSizeOptions.value.some(option => option.value === imageSize.value)
+  if (!sizeExists && imageSizeOptions.value.length > 0) {
+    imageSize.value = imageSizeOptions.value[0].value
+  }
+}, { immediate: true })
+
+watch(imageRatios, (ratios) => {
+  if (!ratios.some(ratio => ratio.value === aspectRatio.value)) {
+    aspectRatio.value = ratios[0]?.value || '1:1'
+  }
+}, { immediate: true })
 
 function onImageLoad() {
   initCanvas()
@@ -221,6 +238,7 @@ async function handleGenerate() {
     originalImageUrl: props.imageSrc,
     maskBase64,
     prompt: prompt.value.trim(),
+    modelId: lockedModel.value,
     aspectRatio: aspectRatio.value,
     imageSize: imageSize.value
   })
