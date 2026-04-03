@@ -1,7 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NButton } from 'naive-ui'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -35,9 +34,9 @@ const handleEnter = () => {
         <img src="/images/icon.png" alt="" class="l-brand-icon" />
         <span class="l-brand-text">{{ $t('landing.navBrand') }}</span>
       </div>
-      <NButton type="primary" @click="handleEnter" strong>
+      <button class="l-cta-btn" @click="handleEnter">
         {{ $t('landing.enterPlatform') }}
-      </NButton>
+      </button>
     </div>
   </nav>
 
@@ -112,7 +111,7 @@ const handleEnter = () => {
               <tr><td><code>type</code></td><td>string</td><td>是</td><td>image 或 video</td></tr>
               <tr><td><code>prompt</code></td><td>string</td><td>是</td><td>文字描述</td></tr>
               <tr><td><code>model</code></td><td>string</td><td>否</td><td>模型 ID，见模型列表</td></tr>
-              <tr><td><code>params</code></td><td>object</td><td>否</td><td>额外参数，如 {"size":"1K"}</td></tr>
+              <tr><td><code>params</code></td><td>object</td><td>否</td><td>额外参数，如 <code>{"size":"1K"}</code></td></tr>
             </tbody>
           </table>
           <pre class="l-code"><code>curl -X POST https://your-domain/api/generate \
@@ -182,6 +181,22 @@ const handleEnter = () => {
   color: #1a1a1a;
 }
 
+.l-cta-btn {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.l-cta-btn:hover {
+  background: #6d28d9;
+}
+
 /* ===== Main ===== */
 .l-main {
   flex: 1;
@@ -235,7 +250,7 @@ const handleEnter = () => {
   border-top: 1px solid #f3f4f6;
 }
 
-.l-announce-item:first-of-type {
+.l-announce-item:first-child {
   border-top: none;
   padding-top: 0;
 }
