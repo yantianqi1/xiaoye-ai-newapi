@@ -1,97 +1,26 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NButton } from 'naive-ui'
-import { useThemeStore } from '../stores/theme'
-import { useLocaleStore } from '../stores/locale'
 
 const { t } = useI18n()
 const router = useRouter()
-const themeStore = useThemeStore()
-const localeStore = useLocaleStore()
 
-
-// 落地页强制深色
-themeStore.forceTheme('dark')
-
-// Hero 背景视频轮播
-const activeVideo = ref(0)
-const heroVideos = [
-  { src: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/1.video.7a8931e8.mp4', poster: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/1.down.08054096.jpeg' },
-  { src: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/2.video.25d2b0f2.mp4', poster: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/2.down.ee91868b.jpg' },
-  { src: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/3.video.667e9ea3.mp4', poster: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/3.down.482b8b3d.jpg' }
+const announcements = [
+  {
+    date: t('landing.announcement1Date'),
+    title: t('landing.announcement1Title'),
+    content: t('landing.announcement1Content'),
+  },
 ]
-let videoTimer = null
 
-const features = computed(() => [
-  {
-    icon: '🎨',
-    title: t('landing.feature1Title'),
-    desc: t('landing.feature1Desc'),
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  {
-    icon: '✏️',
-    title: t('landing.feature2Title'),
-    desc: t('landing.feature2Desc'),
-    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  },
-  {
-    icon: '🎬',
-    title: t('landing.feature3Title'),
-    desc: t('landing.feature3Desc'),
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-  },
-  {
-    icon: '💬',
-    title: t('landing.feature4Title'),
-    desc: t('landing.feature4Desc'),
-    gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-  },
-  {
-    icon: '🛍️',
-    title: t('landing.feature5Title'),
-    desc: t('landing.feature5Desc'),
-    gradient: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
-  }
-])
+const steps = [
+  { num: '01', title: t('landing.step1Title'), desc: t('landing.step1Desc') },
+  { num: '02', title: t('landing.step2Title'), desc: t('landing.step2Desc') },
+  { num: '03', title: t('landing.step3Title'), desc: t('landing.step3Desc') },
+]
 
-const showcaseItems = computed(() => [
-  { prompt: t('landing.showcase1Prompt'), image: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/1.727df331.jpg', tag: t('landing.showcase1Tag') },
-  { prompt: t('landing.showcase2Prompt'), image: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/3.abaef3cc.jpg', tag: t('landing.showcase2Tag') },
-  { prompt: t('landing.showcase3Prompt'), image: '//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/5.1e569bfc.jpg', tag: t('landing.showcase3Tag') }
-])
-
-// 滚动动画
-let observer = null
-
-onMounted(() => {
-  // 视频轮播
-  videoTimer = setInterval(() => {
-    activeVideo.value = (activeVideo.value + 1) % heroVideos.length
-  }, 3000)
-
-  observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible')
-      }
-    })
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' })
-
-  document.querySelectorAll('.animate-on-scroll').forEach(el => {
-    observer.observe(el)
-  })
-})
-
-onUnmounted(() => {
-  observer?.disconnect()
-  if (videoTimer) clearInterval(videoTimer)
-  themeStore.clearForceTheme()
-})
-
-const handleStart = () => {
+const handleEnter = () => {
   router.push('/inspiration')
 }
 </script>
