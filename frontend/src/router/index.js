@@ -178,7 +178,7 @@ function resolveMetaText(meta, field, keyField, fallback) {
 }
 
 function applyRouteMeta(to) {
-  document.title = resolveMetaText(to.meta, 'title', 'titleKey', '小野 AI')
+  document.title = resolveMetaText(to.meta, 'title', 'titleKey', '语画姬')
 
   const descTag = document.querySelector('meta[name="description"]')
   if (descTag) {
