@@ -26,258 +26,113 @@ const handleEnter = () => {
 </script>
 
 <template>
-  <div class="landing">
+<div class="landing">
 
-    <!-- 导航 -->
-    <nav class="landing-nav">
-      <div class="nav-container">
-        <div class="nav-brand">
-          <img src="/images/icon.png" alt="" class="brand-icon" />
-          <span class="brand-text">小野 AI</span>
-        </div>
-        <div class="nav-links">
-          <a href="#features" class="nav-link">{{ $t('landing.navFeatures') }}</a>
-          <a href="#showcase" class="nav-link">{{ $t('landing.navShowcase') }}</a>
-          <a href="#models" class="nav-link">{{ $t('landing.navModels') }}</a>
-        </div>
-        <div class="nav-actions">
-          <div class="lang-switcher">
-            <div class="lang-slider" :class="{ 'is-en': localeStore.locale === 'en' }"></div>
-            <button
-              class="lang-opt"
-              :class="{ active: localeStore.locale === 'zh' }"
-              @click="localeStore.setLocale('zh')"
-            >中</button>
-            <button
-              class="lang-opt"
-              :class="{ active: localeStore.locale === 'en' }"
-              @click="localeStore.setLocale('en')"
-            >EN</button>
-          </div>
-          <NButton type="primary" @click="handleStart" strong class="nav-cta">
-            {{ $t('landing.startCreating') }}
-          </NButton>
-        </div>
+  <!-- 导航栏 -->
+  <nav class="l-nav">
+    <div class="l-nav-inner">
+      <div class="l-brand">
+        <img src="/images/icon.png" alt="" class="l-brand-icon" />
+        <span class="l-brand-text">{{ $t('landing.navBrand') }}</span>
       </div>
-    </nav>
+      <NButton type="primary" @click="handleEnter" strong>
+        {{ $t('landing.enterPlatform') }}
+      </NButton>
+    </div>
+  </nav>
 
-    <!-- ========== Hero 区域 ========== -->
-    <header class="hero">
-      <div class="hero-slideshow">
-        <video
-          v-for="(v, i) in heroVideos"
+  <main class="l-main">
+
+    <!-- 公告板 -->
+    <section class="l-section">
+      <div class="l-card">
+        <h2 class="l-announce-heading">{{ $t('landing.announcementTitle') }}</h2>
+        <div
+          v-for="(item, i) in announcements"
           :key="i"
-          class="hero-slide"
-          :class="{ active: activeVideo === i }"
-          :src="v.src"
-          :poster="v.poster"
-          preload="auto"
-          muted
-          loop
-          playsinline
-          autoplay
-          disablepictureinpicture
-          disableremoteplayback
-        />
-        <div class="hero-overlay"></div>
-      </div>
-      <div class="hero-content">
-        <h1 class="hero-title animate-on-scroll">
-          <span class="title-line title-gradient">{{ $t('landing.heroTitle') }}</span>
-        </h1>
-      </div>
-    </header>
-
-    <!-- ========== 灵感展示 ========== -->
-    <section id="showcase" class="showcase-section">
-      <div class="section-container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title title-line title-gradient">{{ $t('landing.showcaseTitle') }}</h2>
-          <p class="section-subtitle">{{ $t('landing.showcaseSubtitle') }}</p>
-        </div>
-      </div>
-
-      <div class="showcase-grid">
-          <div
-            v-for="(item, i) in showcaseItems"
-            :key="i"
-            class="showcase-card animate-on-scroll"
-            :style="{ '--delay': (i * 0.08) + 's' }"
-            @click="handleStart"
-          >
-            <div class="showcase-card-inner">
-              <img :src="item.image" :alt="item.prompt" class="showcase-img" loading="lazy" />
-              <div class="showcase-overlay">
-                <span class="showcase-tag">{{ item.tag }}</span>
-                <p class="showcase-prompt">{{ item.prompt }}</p>
-                <span class="showcase-try">
-                  {{ $t('landing.tryThis') }}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </span>
-              </div>
-            </div>
+          class="l-announce-item"
+        >
+          <div class="l-announce-meta">
+            <span class="l-announce-title">{{ item.title }}</span>
+            <span class="l-announce-date">{{ item.date }}</span>
           </div>
+          <p class="l-announce-content">{{ item.content }}</p>
+        </div>
       </div>
     </section>
 
-    <!-- ========== 功能介绍 ========== -->
-    <section id="features" class="features-section">
-      <div class="section-container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title title-line title-gradient">{{ $t('landing.featuresTitle') }}</h2>
-          <p class="section-subtitle">{{ $t('landing.featuresSubtitle') }}</p>
-        </div>
-
-        <div class="features-grid">
-          <div
-            v-for="(f, i) in features"
-            :key="i"
-            class="feature-card animate-on-scroll"
-            :style="{ '--delay': (i * 0.1) + 's' }"
-          >
-            <div class="feature-icon-wrap" :style="{ background: f.gradient }">
-              <span class="feature-icon">{{ f.icon }}</span>
-            </div>
-            <h3 class="feature-title">{{ f.title }}</h3>
-            <p class="feature-desc">{{ f.desc }}</p>
+    <!-- 使用步骤 -->
+    <section class="l-section l-section-gray">
+      <div class="l-container">
+        <h2 class="l-section-title">{{ $t('landing.stepsTitle') }}</h2>
+        <div class="l-steps">
+          <div v-for="(s, i) in steps" :key="i" class="l-step-card">
+            <div class="l-step-num">{{ s.num }}</div>
+            <h3 class="l-step-title">{{ s.title }}</h3>
+            <p class="l-step-desc">{{ s.desc }}</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ========== 视频生成展示 ========== -->
-    <section class="video-section">
-      <div class="section-container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title title-line title-gradient">{{ $t('landing.videoTitle') }}</h2>
-          <p class="section-subtitle">{{ $t('landing.videoSubtitle') }}</p>
+    <!-- API 文档 -->
+    <section class="l-section">
+      <div class="l-container">
+        <h2 class="l-section-title">{{ $t('landing.apiTitle') }}</h2>
+        <p class="l-section-sub">{{ $t('landing.apiSubtitle') }}</p>
+
+        <!-- 接口 1: 登录 -->
+        <div class="l-api-block">
+          <h3 class="l-api-title">{{ $t('landing.apiAuthTitle') }}</h3>
+          <p class="l-api-desc">{{ $t('landing.apiAuthDesc') }}</p>
+          <pre class="l-code"><code>curl -X POST https://your-domain/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"yourpassword"}'
+
+# 响应
+{"token":"eyJhbGci..."}</code></pre>
         </div>
-      </div>
-      <div class="video-list">
-        <!-- 01 -->
-        <div class="video-row animate-on-scroll">
-          <div class="video-text-col">
-            <div class="video-text-inner">
-              <div class="video-num">01</div>
-              <h3 class="video-heading">{{ $t('landing.video01Title') }}</h3>
-              <p class="video-body">{{ $t('landing.video01Desc') }}</p>
-              <button class="video-cta" @click="handleStart">{{ $t('landing.createNow') }}</button>
-            </div>
-          </div>
-          <div class="video-media-col">
-            <video src="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/0.485b16d2.mp4" poster="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/0.8f3410ca.jpg" class="video-media" muted loop playsinline autoplay preload="auto" />
-          </div>
+
+        <!-- 接口 2: 模型列表 -->
+        <div class="l-api-block">
+          <h3 class="l-api-title">{{ $t('landing.apiModelsTitle') }}</h3>
+          <p class="l-api-desc">{{ $t('landing.apiModelsDesc') }}</p>
+          <pre class="l-code"><code>curl https://your-domain/api/models</code></pre>
         </div>
-        <!-- 02 -->
-        <div class="video-row video-row-reverse animate-on-scroll">
-          <div class="video-text-col">
-            <div class="video-text-inner">
-              <div class="video-num">02</div>
-              <h3 class="video-heading" v-html="$t('landing.video02Title')"></h3>
-              <p class="video-body">{{ $t('landing.video02Desc') }}</p>
-              <button class="video-cta" @click="handleStart">{{ $t('landing.createNow') }}</button>
-            </div>
-          </div>
-          <div class="video-media-col">
-            <video src="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/1.55160634.mp4" poster="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/1.b3d7df69.jpg" class="video-media" muted loop playsinline autoplay preload="auto" />
-          </div>
-        </div>
-        <!-- 03 -->
-        <div class="video-row animate-on-scroll">
-          <div class="video-text-col">
-            <div class="video-text-inner">
-              <div class="video-num">03</div>
-              <h3 class="video-heading">{{ $t('landing.video03Title') }}</h3>
-              <p class="video-body">{{ $t('landing.video03Desc') }}</p>
-              <button class="video-cta" @click="handleStart">{{ $t('landing.createNow') }}</button>
-            </div>
-          </div>
-          <div class="video-media-col">
-            <video src="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/media/2.7045d286.mp4" poster="//lf3-lv-buz.vlabstatic.com/obj/image-lvweb-buz/growth/jimeng/landing_page/static/image/2.6028618f.jpg" class="video-media" muted loop playsinline autoplay preload="auto" />
-          </div>
+
+        <!-- 接口 3: 生成 -->
+        <div class="l-api-block">
+          <h3 class="l-api-title">{{ $t('landing.apiGenerateTitle') }}</h3>
+          <p class="l-api-desc">{{ $t('landing.apiGenerateDesc') }}</p>
+          <table class="l-param-table">
+            <thead>
+              <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>type</code></td><td>string</td><td>是</td><td>image 或 video</td></tr>
+              <tr><td><code>prompt</code></td><td>string</td><td>是</td><td>文字描述</td></tr>
+              <tr><td><code>model</code></td><td>string</td><td>否</td><td>模型 ID，见模型列表</td></tr>
+              <tr><td><code>params</code></td><td>object</td><td>否</td><td>额外参数，如 {"size":"1K"}</td></tr>
+            </tbody>
+          </table>
+          <pre class="l-code"><code>curl -X POST https://your-domain/api/generate \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"image","prompt":"一只橘猫坐在窗台上","model":"nanobanana-pro"}'</code></pre>
         </div>
       </div>
     </section>
 
-    <!-- ========== 模型支持 ========== -->
-    <section id="models" class="models-section">
-      <div class="section-container">
-        <div class="section-header animate-on-scroll">
-          <h2 class="section-title title-line title-gradient">{{ $t('landing.modelsTitle') }}</h2>
-          <p class="section-subtitle">{{ $t('landing.modelsSubtitle') }}</p>
-        </div>
+  </main>
 
-        <div class="models-grid">
-          <div class="model-card animate-on-scroll" style="--delay: 0s">
-            <div class="model-icon">🍌</div>
-            <div class="model-name">Nanobanana Pro</div>
-            <div class="model-provider">Gemini 3 Pro</div>
-            <div class="model-badge">{{ $t('landing.modelRecommended') }}</div>
-          </div>
-          <div class="model-card animate-on-scroll" style="--delay: 0.1s">
-            <div class="model-icon">🎨</div>
-            <div class="model-name">Seedream-4.5</div>
-            <div class="model-provider">Volcengine</div>
-            <div class="model-badge hot">{{ $t('landing.modelHot') }}</div>
-          </div>
-          <div class="model-card animate-on-scroll" style="--delay: 0.2s">
-            <div class="model-icon">🎬</div>
-            <div class="model-name">Seedance-1.5</div>
-            <div class="model-provider">Volcengine</div>
-            <div class="model-badge new">NEW</div>
-          </div>
-          <div class="model-card coming-soon animate-on-scroll" style="--delay: 0.3s">
-            <div class="model-icon">🔮</div>
-            <div class="model-name">{{ $t('landing.moreModels') }}</div>
-            <div class="model-provider">{{ $t('landing.comingSoon') }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
+  <!-- 页脚 -->
+  <footer class="l-footer">
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025223139号-1</a>
+    <span class="l-footer-divider">|</span>
+    <a href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=32050602014047" target="_blank" rel="noopener noreferrer">苏公网安备32050602014047号</a>
+  </footer>
 
-    <!-- ========== CTA ========== -->
-    <section class="cta-section">
-      <div class="section-container animate-on-scroll">
-        <h2 class="cta-title">{{ $t('landing.ctaTitle') }}</h2>
-        <p class="cta-desc">{{ $t('landing.ctaDesc') }}</p>
-        <button class="cta-primary large" @click="handleStart">
-          <span class="cta-content">{{ $t('landing.ctaButton') }}</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ========== 社群 ========== -->
-    <section class="community-section">
-      <div class="section-container animate-on-scroll">
-        <div class="community-card">
-          <div class="community-qr">
-            <!-- <img src="/images/qrcode.jpg" alt="微信群二维码" class="qr-image" /> -->
-          </div>
-          <div class="community-info">
-            <h3 class="community-title">{{ $t('landing.communityTitle') }}</h3>
-            <p class="community-desc" style="white-space: pre-line">{{ $t('landing.communityDesc') }}</p>
-            <div class="community-tags">
-              <span class="community-tag">{{ $t('landing.communityTagArt') }}</span>
-              <span class="community-tag">{{ $t('landing.communityTagVideo') }}</span>
-              <span class="community-tag">{{ $t('landing.communityTagExchange') }}</span>
-              <span class="community-tag">{{ $t('landing.communityTagFree') }}</span>
-            </div>
-            <div class="community-hint">{{ $t('landing.communityHint') }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========== Footer 备案 ========== -->
-    <footer class="site-footer">
-      <div class="footer-beian">
-        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025223139号-1</a>
-        <span class="footer-divider">|</span>
-        <a href="https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=32050602014047" target="_blank" rel="noopener noreferrer">苏公网安备32050602014047号</a>
-      </div>
-    </footer>
-
-  </div>
+</div>
 </template>
 
 <style scoped>
