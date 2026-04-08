@@ -186,10 +186,6 @@ const handleCodeLogin = async () => {
 }
 
 const handleRegister = async () => {
-  if (!code.value || code.value.length !== 6) {
-    error.value = t('auth.enterCode')
-    return
-  }
   if (password.value.length < 6) {
     error.value = t('auth.passwordMinLength')
     return
@@ -203,7 +199,6 @@ const handleRegister = async () => {
   try {
     const response = await axios.post('/api/auth/register', {
       email: email.value,
-      code: code.value,
       password: password.value,
       nickname: nickname.value || undefined,
       invite_code: inviteCode.value.trim() || undefined
@@ -375,7 +370,7 @@ const handleLinuxDoLogin = async () => {
       <!-- Header -->
       <div class="auth-header">
         <div class="auth-brand">
-          <img src="/images/icon.png" alt="小野 AI" class="logo-icon" />
+          <img src="/images/jmlogo.png" alt="小野 AI" class="logo-icon" />
           <h1>小野 AI</h1>
         </div>
         <p class="subtitle">
@@ -563,36 +558,6 @@ const handleLinuxDoLogin = async () => {
                 @keydown="handleKeyDown"
                 :disabled="loading"
               />
-            </div>
-
-            <!-- 验证码 -->
-            <div class="form-group">
-              <label class="form-label">{{ $t('auth.verificationCode') }}</label>
-              <div class="code-input-wrapper">
-                <input
-                  v-model="code"
-                  type="text"
-                  maxlength="6"
-                  :placeholder="$t('auth.codePlaceholder')"
-                  class="form-input"
-                  @keydown="handleKeyDown"
-                  :disabled="loading"
-                />
-                <button
-                  type="button"
-                  @click="sendCode"
-                  :disabled="!canSendCode"
-                  class="resend-btn"
-                >
-                  <span v-if="sendingCode" class="spinner-small"></span>
-                  {{ sendingCode ? '' : (countdown > 0 ? `${countdown}s` : $t('auth.getCode')) }}
-                </button>
-              </div>
-            </div>
-
-            <!-- 开发模式验证码提示 -->
-            <div v-if="devCode" class="dev-code-hint">
-              {{ $t('auth.devCode') }} <strong>{{ devCode }}</strong>
             </div>
 
             <!-- 昵称 -->

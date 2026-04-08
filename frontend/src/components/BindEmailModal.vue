@@ -108,7 +108,7 @@ const handleKeyDown = (e) => {
       <!-- Header -->
       <div class="auth-header">
         <div class="auth-brand">
-          <img src="/images/icon.png" alt="小野 AI" class="logo-icon" />
+          <img src="/images/jmlogo.png" alt="小野 AI" class="logo-icon" />
           <h1>小野 AI</h1>
         </div>
         <p class="subtitle">{{ $t('bind.title') }}</p>

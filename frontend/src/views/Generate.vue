@@ -225,7 +225,7 @@ const handleSubmit = async (payload) => {
     status: payload.creativeMode === 'video' ? 'queued' : 'generating',
     images: [],
     video_url: null,
-    credits_cost: payload.credits,
+    credits_cost: 0,
     params: payload.params,
     reference_images: payload.images || []
   })
@@ -456,7 +456,7 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
             </div>
           </div>
           <div class="chat-row ai-row">
-            <div class="ai-avatar"><img src="/images/icon.png" alt="" class="ai-avatar-img" /></div>
+            <div class="ai-avatar"><img src="/images/jmlogo.png" alt="" class="ai-avatar-img" /></div>
             <div class="bubble ai-bubble">
               <div v-if="['generating','queued','running'].includes(gen.status)" class="generating-state">
                 <NSpin size="small" /><span>{{ getStatusText(gen.status) }}</span>
@@ -582,7 +582,7 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
             </div>
           </div>
           <div class="chat-row ai-row">
-            <div class="ai-avatar"><img src="/images/icon.png" alt="" class="ai-avatar-img" /></div>
+            <div class="ai-avatar"><img src="/images/jmlogo.png" alt="" class="ai-avatar-img" /></div>
             <div class="bubble ai-bubble">
               <div v-if="['generating','queued','running'].includes(result.status)" class="generating-state">
                 <NSpin size="small" /><span>{{ getStatusText(result.status) }}</span>

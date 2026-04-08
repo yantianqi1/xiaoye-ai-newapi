@@ -31,7 +31,7 @@ const handleEnter = () => {
   <nav class="l-nav">
     <div class="l-nav-inner">
       <div class="l-brand">
-        <img src="/images/icon.png" alt="" class="l-brand-icon" />
+        <img src="/images/jmlogo.png" alt="" class="l-brand-icon" />
         <span class="l-brand-text">{{ $t('landing.navBrand') }}</span>
       </div>
       <button class="l-cta-btn" @click="handleEnter">
