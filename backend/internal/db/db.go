@@ -259,6 +259,46 @@ type InspirationPostTag struct {
 	CreatedAt time.Time `gorm:"type:datetime;index;comment:Created at" json:"created_at"`
 }
 
+// PlatformModel stores admin-configured models for BYOK mode.
+type PlatformModel struct {
+	ID        uint64    `gorm:"primaryKey" json:"id"`
+	ModelID   string    `gorm:"type:varchar(100);uniqueIndex;not null;comment:Model ID sent to upstream" json:"model_id"`
+	Name      string    `gorm:"type:varchar(100);not null;comment:Display name" json:"name"`
+	Type      string    `gorm:"type:varchar(20);not null;default:'image';comment:image or video" json:"type"`
+	ApiType   string    `gorm:"type:varchar(20);not null;default:'task';comment:Upstream API style: task or chat" json:"api_type"`
+	IconURL   string    `gorm:"type:varchar(255);default:'';comment:Icon URL" json:"icon_url"`
+	SortOrder int       `gorm:"type:int;default:0;comment:Display order" json:"sort_order"`
+	Enabled   bool      `gorm:"type:boolean;default:true;comment:Is enabled" json:"enabled"`
+	CreatedAt time.Time `gorm:"type:datetime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"type:datetime" json:"updated_at"`
+}
+
+// PlatformConfig stores global key-value settings.
+type PlatformConfig struct {
+	ConfigKey   string    `gorm:"primaryKey;type:varchar(100)" json:"config_key"`
+	ConfigValue string    `gorm:"type:text;not null" json:"config_value"`
+	UpdatedAt   time.Time `gorm:"type:datetime" json:"updated_at"`
+}
+
+func (PlatformConfig) TableName() string { return "platform_config" }
+
+// GetConfig reads a platform config value by key.
+func GetConfig(key string) string {
+	var cfg PlatformConfig
+	if err := DB.Where("config_key = ?", key).First(&cfg).Error; err != nil {
+		return ""
+	}
+	return cfg.ConfigValue
+}
+
+// SetConfig upserts a platform config value.
+func SetConfig(key, value string) error {
+	return DB.Exec(
+		"INSERT INTO platform_config (config_key, config_value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), updated_at = NOW()",
+		key, value,
+	).Error
+}
+
 // InspirationReviewLog stores review status transitions for future moderation systems.
 type InspirationReviewLog struct {
 	ID             uint64    `gorm:"primaryKey;comment:Review log ID" json:"id"`

@@ -1,8 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NPopover, NDrawer, NDrawerContent, NModal, NIcon } from 'naive-ui'
-import { LogoWechat } from '@vicons/ionicons5'
+import { NPopover, NDrawer, NDrawerContent, NModal } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/user'
 import { useThemeStore } from '../stores/theme'
@@ -168,8 +167,8 @@ watch(
 <template>
   <aside class="app-sidebar">
     <!-- Logo -->
-    <div class="sidebar-logo" @click="navigateTo('/inspiration')">
-      <img src="/images/icon.png" alt="小野 AI" class="logo-icon" />
+    <div class="sidebar-logo" @click="router.push({ name: 'landing', query: { home: '1' } })">
+      <span class="logo-text">姬</span>
     </div>
 
     <!-- Nav icons -->
@@ -203,44 +202,28 @@ watch(
     <div class="sidebar-bottom">
       <div class="bottom-divider"></div>
 
-      <!-- Daily Checkin (only show when available) -->
+      <!-- API Key -->
       <button
-        v-if="userStore.isLoggedIn && userStore.dailyCheckinAvailable"
-        class="bottom-item checkin-item available"
-        :data-tip="$t('checkin.sidebarTip')"
-        :aria-label="$t('checkin.sidebarTip')"
-        @click="handleCheckin"
+        class="bottom-item apikey-item"
+        :class="{ set: userStore.hasApiKey() }"
+        :data-tip="$t('sidebar.apiKey')"
+        :aria-label="$t('sidebar.apiKey')"
+        @click="userStore.openApiKeyModal()"
       >
-        <span class="checkin-icon">📅</span>
-        <span class="checkin-label">+{{ userStore.nextCheckinReward }}</span>
+        <svg class="apikey-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
+        <span class="apikey-status" :class="{ set: userStore.hasApiKey() }">
+          {{ userStore.hasApiKey() ? $t('sidebar.apiKeySet') : $t('sidebar.apiKeyNotSet') }}
+        </span>
       </button>
 
-      <!-- Diamonds -->
-      <button class="bottom-item credits-item" @click="handleOpenPricing" :data-tip="$t('sidebar.getDiamonds')" :aria-label="$t('sidebar.getDiamonds')">
-        <span class="credits-icon-lg">&#x1F48E;</span>
-        <span class="credits-num">{{ userStore.userCredits }}</span>
-      </button>
-
-      <!-- Community -->
-      <NPopover trigger="click" placement="right-end" :show-arrow="false">
-        <template #trigger>
-          <button class="bottom-item community-item" :data-tip="$t('sidebar.joinCommunity')" :aria-label="$t('sidebar.joinCommunity')">
-            <NIcon class="community-icon">
-              <LogoWechat />
-            </NIcon>
-          </button>
-        </template>
-        <div class="community-popover">
-          <div class="community-qr">
-            <!-- <img src="/images/qrcode.jpg" :alt="$t('sidebar.communityTitle')" class="qr-image" /> -->
-          </div>
-          <div class="community-body">
-            <div class="community-title">{{ $t('sidebar.communityTitle') }}</div>
-            <div class="community-desc" style="white-space: pre-line;">{{ $t('sidebar.communityDesc') }}</div>
-            <div class="community-hint">{{ $t('sidebar.communityHint') }}</div>
-          </div>
-        </div>
-      </NPopover>
+      <!-- Community QQ Group -->
+      <a class="bottom-item community-item" href="https://qm.qq.com/q/YOUR_QQ_GROUP_KEY" target="_blank" rel="noopener" :data-tip="$t('sidebar.joinCommunity')" :aria-label="$t('sidebar.joinCommunity')">
+        <svg class="community-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21.4 13.6c-.3-.8-.7-1.5-1.2-2.1.1-.5.2-1 .2-1.5 0-4.4-3.6-8-8-8S4.4 6.4 4.4 10c0 .5.1 1 .2 1.5-.5.6-.9 1.3-1.2 2.1-.5 1.3-.6 2.5-.3 3.2.2.5.5.7.9.7.2 0 .5-.1.7-.2.3.8.8 1.5 1.4 2.1-.3.4-.5.9-.5 1.4 0 .6.3 1 .8 1.2.8.3 2 .4 3.2.2.5.2 1.1.3 1.7.3s1.2-.1 1.7-.3c1.2.2 2.4.1 3.2-.2.5-.2.8-.6.8-1.2 0-.5-.2-1-.5-1.4.6-.6 1.1-1.3 1.4-2.1.2.1.5.2.7.2.4 0 .7-.2.9-.7.3-.7.2-1.9-.3-3.2z"/>
+        </svg>
+      </a>
 
       <!-- Notifications -->
       <button class="bottom-item notification-item" @click="openNotificationDrawer" :data-tip="$t('sidebar.notifications')" :aria-label="$t('sidebar.notifications')">
@@ -432,10 +415,12 @@ watch(
 .sidebar-logo:hover {
   background: var(--color-sidebar-hover);
 }
-.logo-icon {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e53e3e;
+  line-height: 1;
+  user-select: none;
 }
 
 /* ====== Navigation ====== */
@@ -572,36 +557,25 @@ watch(
   opacity: 1;
 }
 
-.credits-item {
-  color: #fbbf24;
+/* ====== API Key ====== */
+.apikey-item {
+  color: var(--color-text-muted, #999);
 }
-.credits-icon-lg {
-  font-size: 16px;
+.apikey-item.set {
+  color: #10b981;
 }
-.credits-num {
-  font-size: 10px;
+.apikey-icon {
+  width: 18px;
+  height: 18px;
+}
+.apikey-status {
+  font-size: 9px;
   font-weight: 600;
+  opacity: 0.7;
 }
-
-/* ====== Checkin ====== */
-.checkin-item {
-  width: 48px;
-  height: 44px;
-  position: relative;
-  cursor: pointer;
-  animation: checkin-breathe 2s ease-in-out infinite;
-}
-.checkin-item:hover {
-  transform: scale(1.08);
-}
-.checkin-icon {
-  font-size: 15px;
-  line-height: 1;
-}
-.checkin-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #fbbf24;
+.apikey-status.set {
+  color: #10b981;
+  opacity: 1;
   line-height: 1;
 }
 .checkin-label.done-label {

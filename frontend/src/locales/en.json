@@ -10,7 +10,7 @@
   "sidebar.joinCommunity": "Join Community",
   "sidebar.communityTitle": "Join AI Creator Community",
   "sidebar.communityDesc": "AI Art · AI Video · Creative Exchange\nFree credits giveaways",
-  "sidebar.communityHint": "Scan QR code with WeChat",
+  "sidebar.communityHint": "Click to join QQ group",
   "sidebar.myAccount": "My Account",
   "sidebar.inviteFriends": "Invite Friends",
   "sidebar.theme": "Theme",
@@ -203,7 +203,6 @@
   "composer.optimizeEmptyHint": "Click optimize to generate prompt suggestions",
   "composer.optimizeEcommerceTitle": "Generated {count} product image prompts",
   "composer.optimizeEcommerceSubtitle": "Each prompt targets a different image type",
-
   "editor.title": "Inpaint",
   "editor.brushSize": "Brush Size",
   "editor.undo": "Undo",
@@ -214,7 +213,6 @@
   "editor.noMask": "Please paint the area you want to modify first",
   "editor.noPrompt": "Please enter a description",
   "editor.balance": "Balance",
-
   "generate.queued": "Queued...",
   "generate.running": "Generating...",
   "generate.generating": "Generating...",
@@ -531,5 +529,14 @@
   "bind.submitting": "Binding...",
   "bind.success": "Email bound successfully",
   "bind.failed": "Binding failed",
-  "bind.hint": "After binding, you can use email login and password reset"
+  "bind.hint": "After binding, you can use email login and password reset",
+  "apiKey.title": "API Key Settings",
+  "apiKey.description": "Enter your API Key from the upstream platform. Generation will use your own credits.",
+  "apiKey.placeholder": "Enter your API Key (sk-...)",
+  "apiKey.save": "Save",
+  "apiKey.clear": "Clear",
+  "apiKey.hint": "Key is stored only in your browser locally and is never uploaded to the server. You will need to re-enter it on a different device.",
+  "sidebar.apiKey": "API Key",
+  "sidebar.apiKeySet": "Set",
+  "sidebar.apiKeyNotSet": "Not set"
 }

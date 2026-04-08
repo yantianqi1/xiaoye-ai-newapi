@@ -86,13 +86,26 @@ func processVideoGeneration(gen *db.Generation) {
 
 	// 从 params 中获取 provider 信息
 	providerName := "volcengine" // 默认
+	var byokKey string
 	if gen.Params != "" {
 		var params map[string]interface{}
 		if err := json.Unmarshal([]byte(gen.Params), &params); err == nil {
 			if p, ok := params["provider"].(string); ok && p != "" {
 				providerName = p
 			}
+			if k, ok := params["byokApiKey"].(string); ok {
+				byokKey = k
+			}
 		}
+	}
+
+	// BYOK 任务由后台轮询 + 前端轮询双保险：用户关页面时后台仍然能推进状态
+	// 所需条件：创建任务时 params.byokApiKey 必须有值（见 handleProxyVideoGenerate）
+	if providerName == "byok" {
+		if byokKey != "" {
+			checkBYOKVideoStatus(gen, byokKey)
+		}
+		return
 	}
 
 	// 获取对应的 Provider

@@ -11,18 +11,21 @@ export const useModelsStore = defineStore('models', () => {
 
   // Getters
   const imageModels = computed(() => {
-    return models.value.filter(m => m.id.includes('image') || m.id.includes('seedream'))
+    return models.value.filter(m => m.type === 'image')
+  })
+
+  const videoModels = computed(() => {
+    return models.value.filter(m => m.type === 'video')
   })
 
   const availableModels = computed(() => {
-    return models.value.filter(m => m.available !== false)
+    return models.value
   })
 
   const getModelById = computed(() => (id) => {
     return models.value.find(m => m.id === id) || null
   })
 
-  // 获取模型显示名称（找不到时返回 null）
   const getDisplayName = computed(() => (id) => {
     const model = models.value.find(m => m.id === id)
     return model ? model.name : null
@@ -39,25 +42,20 @@ export const useModelsStore = defineStore('models', () => {
   // Actions
   async function loadModels(force = false) {
     if (loaded.value && !force) return
-    
+
     loading.value = true
     try {
       const { data } = await axios.get('/api/models')
       models.value = data.models || []
-      
-      // 设置默认模型（优先 Nanobanana Pro，否则第一个可用模型）
-      const priorityOrder = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', 'doubao-seedream-4-5']
-      for (const id of priorityOrder) {
-        const found = models.value.find(m => m.id === id && m.available !== false)
-        if (found) {
-          defaultModelId.value = id
-          break
-        }
-      }
-      if (!defaultModelId.value && models.value.length > 0) {
+
+      // Default model: first image model
+      const firstImage = models.value.find(m => m.type === 'image')
+      if (firstImage) {
+        defaultModelId.value = firstImage.id
+      } else if (models.value.length > 0) {
         defaultModelId.value = models.value[0].id
       }
-      
+
       loaded.value = true
     } catch (e) {
       console.error('Failed to load models:', e)
@@ -80,6 +78,7 @@ export const useModelsStore = defineStore('models', () => {
     loaded,
     defaultModelId,
     imageModels,
+    videoModels,
     availableModels,
     getModelById,
     ensureModelId,

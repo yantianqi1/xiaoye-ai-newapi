@@ -1,5 +1,9 @@
 package provider
 
+import (
+	"google-ai-proxy/internal/db"
+)
+
 // VideoProvider 视频生成服务商接口
 type VideoProvider interface {
 	// GetProviderName 返回服务商名称
@@ -73,9 +77,22 @@ var modelProviderMap = map[string]string{
 }
 
 // GetProviderByModel 根据模型ID获取服务商名称
+// 解析顺序：
+//  1. 硬编码 modelProviderMap (volcengine / google / kling 等本地直连 provider)
+//  2. platform_models 表中 type='video' 且 enabled 的模型 → "newapi"
+//     (管理员在后台添加的任意上游 OpenAI 兼容渠道模型)
 func GetProviderByModel(modelID string) string {
 	if provider, ok := modelProviderMap[modelID]; ok {
 		return provider
+	}
+	if modelID == "" || db.DB == nil {
+		return ""
+	}
+	var row db.PlatformModel
+	if err := db.DB.Select("id", "model_id", "type", "enabled").
+		Where("model_id = ? AND enabled = ? AND type = ?", modelID, true, "video").
+		First(&row).Error; err == nil {
+		return "newapi"
 	}
 	return ""
 }

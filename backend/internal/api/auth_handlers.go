@@ -115,23 +115,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	if len(req.Code) != 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "验证码格式无效"})
-		return
-	}
-
-	// 验证验证码
-	var verification db.EmailVerification
-	result := db.DB.Where(
-		"email = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
-		req.Email, req.Code, "register", false, time.Now(),
-	).Order("created_at DESC").First(&verification)
-
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "验证码无效或已过期"})
-		return
-	}
-
 	// 检查邮箱是否已存在
 	var existingUser db.User
 	if db.DB.Where("email = ?", req.Email).First(&existingUser).Error == nil {
@@ -313,9 +296,6 @@ func Register(c *gin.Context) {
 		log.Printf("创建欢迎通知失败: %v", err)
 		// 不影响注册流程，仅记录日志
 	}
-
-	// 标记验证码已使用
-	db.DB.Model(&verification).Update("used", true)
 
 	// 生成JWT令牌
 	token, err := auth.GenerateUserToken(user.ID, user.Email)

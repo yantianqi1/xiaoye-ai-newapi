@@ -1,0 +1,91 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-xiaoye}
+      MYSQL_USER: ${DB_USER:-xiaoye}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-xiaoye123}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-xiaoye}
+      DB_PASSWORD: ${DB_PASSWORD:-xiaoye123}
+      DB_NAME: ${DB_NAME:-xiaoye}
+      PORT: 8092
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:81}
+      INSPIRATION_AUTO_APPROVE: ${INSPIRATION_AUTO_APPROVE:-false}
+      # AI Providers
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      PROMPT_OPTIMIZE_CREDITS: ${PROMPT_OPTIMIZE_CREDITS:-1}
+      OPENAI_COMPAT_BASE_URL: ${OPENAI_COMPAT_BASE_URL:-}
+      OPENAI_COMPAT_API_KEY: ${OPENAI_COMPAT_API_KEY:-}
+      OPENAI_COMPAT_IMAGE_MODEL: ${OPENAI_COMPAT_IMAGE_MODEL:-}
+      OPENAI_COMPAT_IMAGE_DISPLAY_NAME: ${OPENAI_COMPAT_IMAGE_DISPLAY_NAME:-}
+      OPENAI_COMPAT_IMAGE_CREDITS: ${OPENAI_COMPAT_IMAGE_CREDITS:-10}
+      # OSS Storage
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-}
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_PUBLIC_DOMAIN: ${OSS_PUBLIC_DOMAIN:-}
+      # SMTP Email
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+      # OAuth Linux.do
+      LINUXDO_CLIENT_ID: ${LINUXDO_CLIENT_ID:-}
+      LINUXDO_CLIENT_SECRET: ${LINUXDO_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_URL: ${OAUTH_REDIRECT_URL:-}
+      LINUXDO_CREDIT_PID: ${LINUXDO_CREDIT_PID:-}
+      LINUXDO_CREDIT_KEY: ${LINUXDO_CREDIT_KEY:-}
+      LINUXDO_CREDIT_NOTIFY_URL: ${LINUXDO_CREDIT_NOTIFY_URL:-}
+      LINUXDO_CREDIT_RETURN_URL: ${LINUXDO_CREDIT_RETURN_URL:-}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  frontend-admin:
+    build: ./frontend-admin
+    restart: unless-stopped
+    ports:
+      - "81:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  uploads_data:

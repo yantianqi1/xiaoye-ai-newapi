@@ -55,7 +55,8 @@ func main() {
 	email.InitEmail()
 
 	if err := storage.InitOSS(); err != nil {
-		log.Printf("warning: OSS init failed: %v", err)
+		log.Printf("warning: OSS init failed: %v, 启用本地文件存储", err)
+		storage.InitLocalStorage()
 	}
 
 	// Background workers.
@@ -72,8 +73,11 @@ func main() {
 	} else {
 		corsConfig.AllowOrigins = []string{"http://localhost:5173", "http://localhost:5174"}
 	}
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Admin-Token"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Admin-Token", "X-User-Api-Key"}
 	r.Use(cors.New(corsConfig))
+
+	// Serve locally stored uploads
+	r.Static("/api/uploads", storage.LocalStorageDir())
 
 	apiGroup := r.Group("/api")
 	{
@@ -152,6 +156,16 @@ func main() {
 		{
 			adminGroup.GET("/inspirations", adminapi.ListInspirations)
 			adminGroup.POST("/inspirations/:id/review", adminapi.ReviewInspiration)
+
+			// Model management
+			adminGroup.GET("/models", adminapi.ListModels)
+			adminGroup.POST("/models", adminapi.CreateModel)
+			adminGroup.PUT("/models/:id", adminapi.UpdateModel)
+			adminGroup.DELETE("/models/:id", adminapi.DeleteModel)
+
+			// Platform config
+			adminGroup.GET("/config/:key", adminapi.GetConfig)
+			adminGroup.PUT("/config/:key", adminapi.SetConfig)
 		}
 	}
 

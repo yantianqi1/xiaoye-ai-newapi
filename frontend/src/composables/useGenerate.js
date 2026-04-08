@@ -6,13 +6,25 @@ export function useGenerate() {
   const userStore = useUserStore()
   const activePolls = ref({})
 
+  function buildHeaders() {
+    const headers = { Authorization: `Bearer ${userStore.token}` }
+    if (userStore.apiKey) {
+      headers['X-User-Api-Key'] = userStore.apiKey
+    }
+    return headers
+  }
+
   // 统一生成接口（支持 image/video/ecommerce）
   async function generate(type, payload) {
+    if (!userStore.apiKey) {
+      userStore.openApiKeyModal()
+      throw new Error('请先设置 API Key')
+    }
     const response = await axios.post('/api/generate', {
       type,
       ...payload
     }, {
-      headers: { Authorization: `Bearer ${userStore.token}` },
+      headers: buildHeaders(),
       timeout: 30000
     })
     return { task_id: response.data.task_id }
@@ -34,7 +46,7 @@ export function useGenerate() {
   // 获取单个生成记录详情（统一查询接口）
   async function getGeneration(id) {
     const { data } = await axios.get(`/api/generations/${id}`, {
-      headers: { Authorization: `Bearer ${userStore.token}` }
+      headers: buildHeaders()
     })
     return data
   }
@@ -48,7 +60,7 @@ export function useGenerate() {
       try {
         // 使用 generations API 查询状态（通用的生成记录查询）
         const { data: gen } = await axios.get(`/api/generations/${taskId}`, {
-          headers: { Authorization: `Bearer ${userStore.token}` }
+          headers: buildHeaders()
         })
         if (!activePolls.value[taskId]) break
 
@@ -90,14 +102,14 @@ export function useGenerate() {
     const response = await axios.post('/api/user/upload/image', {
       image: base64Data.split(',')[1]
     }, {
-      headers: { Authorization: `Bearer ${userStore.token}` }
+      headers: buildHeaders()
     })
     return response.data.url
   }
 
   async function optimizePrompt(payload) {
     const response = await axios.post('/api/prompt/optimize', payload, {
-      headers: { Authorization: `Bearer ${userStore.token}` },
+      headers: buildHeaders(),
       timeout: 45000
     })
     return response.data
@@ -105,7 +117,7 @@ export function useGenerate() {
 
   async function reversePrompt(payload) {
     const response = await axios.post('/api/tools/reverse-prompt', payload, {
-      headers: { Authorization: `Bearer ${userStore.token}` },
+      headers: buildHeaders(),
       timeout: 60000
     })
     return response.data

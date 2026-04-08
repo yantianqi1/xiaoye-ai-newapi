@@ -9,7 +9,6 @@ type SendCodeRequest struct {
 // RegisterRequest registers a new user.
 type RegisterRequest struct {
 	Email      string `json:"email"`
-	Code       string `json:"code"`
 	Password   string `json:"password"`
 	Nickname   string `json:"nickname"`
 	InviteCode string `json:"invite_code"`

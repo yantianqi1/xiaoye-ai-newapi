@@ -213,7 +213,7 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  if (to.name === 'landing' && isLoggedIn && !to.query.invite) {
+  if (to.name === 'landing' && isLoggedIn && !to.query.invite && !to.query.home) {
     next({ name: 'inspiration' })
     return
   }

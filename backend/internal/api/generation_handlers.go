@@ -3,12 +3,16 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"google-ai-proxy/internal/db"
+	"google-ai-proxy/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -150,6 +154,16 @@ func GetGeneration(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query generation"})
 		return
+	}
+
+	// For BYOK video tasks still pending, check upstream status if user provides API key
+	if gen.Type == "video" && gen.TaskID != nil && *gen.TaskID != "" {
+		if gen.Status == "queued" || gen.Status == "running" || gen.Status == "pending" {
+			apiKey := strings.TrimSpace(c.GetHeader("X-User-Api-Key"))
+			if apiKey != "" {
+				checkBYOKVideoStatus(&gen, apiKey)
+			}
+		}
 	}
 
 	shareID, err := getGenerationShareID(userID, gen.ID)
@@ -354,6 +368,95 @@ func dbGenerationToResponse(gen db.Generation, shareID string) GenerationRespons
 		ShareID:         shareID,
 		CreatedAt:       gen.CreatedAt.UnixMilli(),
 		UpdatedAt:       gen.UpdatedAt.UnixMilli(),
+	}
+}
+
+// checkBYOKVideoStatus queries upstream NewAPI for video task status and updates the generation record.
+func checkBYOKVideoStatus(gen *db.Generation, apiKey string) {
+	baseURL := getNewAPIBaseURL()
+	if baseURL == "" {
+		return
+	}
+
+	taskID := *gen.TaskID
+	endpoint := buildUpstreamURL(baseURL, fmt.Sprintf("/video/generations/%s", taskID))
+
+	client := newProxyHTTPClient(15 * time.Second)
+	httpReq, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		log.Printf("[BYOK VideoCheck] 创建请求失败 [task:%s]: %v", taskID, err)
+		return
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		log.Printf("[BYOK VideoCheck] 请求失败 [task:%s]: %v", taskID, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var statusResp struct {
+		Status   string `json:"status"`
+		VideoURL string `json:"video_url"`
+		Error    string `json:"error"`
+	}
+	if err := json.Unmarshal(body, &statusResp); err != nil {
+		return
+	}
+
+	updates := map[string]interface{}{"updated_at": time.Now()}
+	needUpdate := false
+
+	newStatus := statusResp.Status
+	// Map common upstream status names
+	switch newStatus {
+	case "succeeded", "completed", "complete":
+		newStatus = "success"
+	case "processing", "in_progress":
+		newStatus = "running"
+	}
+
+	if newStatus != "" && newStatus != gen.Status {
+		updates["status"] = newStatus
+		gen.Status = newStatus
+		needUpdate = true
+	}
+
+	if newStatus == "success" && statusResp.VideoURL != "" {
+		videoURL, err := storage.DownloadAndUploadVideo(statusResp.VideoURL, strconv.FormatUint(gen.UserID, 10), nil)
+		if err != nil {
+			log.Printf("[BYOK VideoCheck] 转存视频失败 [task:%s]: %v", taskID, err)
+			updates["video_url"] = statusResp.VideoURL
+		} else {
+			updates["video_url"] = videoURL
+		}
+		gen.VideoURL = updates["video_url"].(string)
+		needUpdate = true
+	}
+
+	if newStatus == "failed" && statusResp.Error != "" {
+		updates["error_msg"] = statusResp.Error
+		gen.ErrorMsg = statusResp.Error
+		needUpdate = true
+	}
+
+	// Timeout: 30 minutes
+	if time.Since(gen.CreatedAt) > 30*time.Minute && (gen.Status == "queued" || gen.Status == "running" || gen.Status == "pending") {
+		updates["status"] = "failed"
+		updates["error_msg"] = "任务处理超时"
+		gen.Status = "failed"
+		gen.ErrorMsg = "任务处理超时"
+		needUpdate = true
+	}
+
+	if needUpdate {
+		db.DB.Model(gen).Updates(updates)
 	}
 }
 

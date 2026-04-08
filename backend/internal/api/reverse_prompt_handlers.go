@@ -12,17 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"google-ai-proxy/internal/config"
 	"google-ai-proxy/internal/db"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-)
-
-const (
-	CreditTxTypeReversePromptCost = "reverse_prompt_cost"
-	reversePromptCredits          = 2
-	reversePromptModel            = "doubao-seed-2-0-pro-260215"
 )
 
 // ReversePromptRequest 图片反推提示词请求。
@@ -38,6 +30,13 @@ type ReversePromptResponse struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
+// ReversePrompt 图片反推提示词：走上游 NewAPI 的 /v1/chat/completions。
+//
+// 设计：
+//   - 上游地址由管理员在 platform_config.newapi_base_url 配置（与其它 BYOK 路径共用）。
+//   - 使用的视觉模型 ID 由管理员在 platform_config.reverse_prompt_model 配置。
+//   - 鉴权使用用户自己的 API Key（请求头 X-User-Api-Key），与图像/视频 BYOK 一致。
+//   - 因此本接口不再扣除平台钻石。
 func ReversePrompt(c *gin.Context) {
 	startTime := time.Now()
 	userID := c.GetUint64("userID")
@@ -65,25 +64,36 @@ func ReversePrompt(c *gin.Context) {
 		req.TargetModel = "Nanobanana Pro"
 	}
 
-	user, ok := getActiveUser(c, userID)
-	if !ok {
+	if _, ok := getActiveUser(c, userID); !ok {
 		return
 	}
 
-	if err := deductReversePromptCredits(userID, user.Credits, reversePromptCredits); err != nil {
-		resp := gin.H{
-			"error":            err.Error(),
-			"required_credits": reversePromptCredits,
-			"current_balance":  user.Credits,
-		}
-		logAPICall("/api/tools/reverse-prompt", nil, http.StatusPaymentRequired, resp, time.Since(startTime), userIDStr)
-		c.JSON(http.StatusPaymentRequired, resp)
+	apiKey := getUserAPIKey(c)
+	if apiKey == "" {
+		resp := gin.H{"error": "请先设置 API Key"}
+		logAPICall("/api/tools/reverse-prompt", nil, http.StatusBadRequest, resp, time.Since(startTime), userIDStr)
+		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
-	prompt, usage, err := callReversePromptAPI(req)
+	baseURL := getNewAPIBaseURL()
+	if baseURL == "" {
+		resp := gin.H{"error": "平台未配置上游服务地址，请联系管理员"}
+		logAPICall("/api/tools/reverse-prompt", nil, http.StatusServiceUnavailable, resp, time.Since(startTime), userIDStr)
+		c.JSON(http.StatusServiceUnavailable, resp)
+		return
+	}
+
+	modelID := strings.TrimSpace(db.GetConfig("reverse_prompt_model"))
+	if modelID == "" {
+		resp := gin.H{"error": "管理员尚未配置图片反推模型"}
+		logAPICall("/api/tools/reverse-prompt", nil, http.StatusServiceUnavailable, resp, time.Since(startTime), userIDStr)
+		c.JSON(http.StatusServiceUnavailable, resp)
+		return
+	}
+
+	prompt, usage, err := callReversePromptAPI(req, baseURL, apiKey, modelID)
 	if err != nil {
-		refundCredits(userID, reversePromptCredits, "reverse-prompt-request-failed")
 		log.Printf("[ReversePrompt] failed [user:%d]: %v", userID, err)
 		resp := gin.H{"error": "图片反推失败，请重试"}
 		logAPICall("/api/tools/reverse-prompt", nil, http.StatusBadGateway, resp, time.Since(startTime), userIDStr)
@@ -91,23 +101,16 @@ func ReversePrompt(c *gin.Context) {
 		return
 	}
 
-	creditsRemaining := user.Credits - reversePromptCredits
-	if creditsRemaining < 0 {
-		creditsRemaining = 0
-	}
-
 	resp := ReversePromptResponse{
 		Prompt: prompt,
 		Meta: map[string]interface{}{
-			"provider":          "volcengine",
-			"model":             reversePromptModel,
+			"provider":          "newapi",
+			"model":             modelID,
 			"language":          req.Language,
 			"target_model":      req.TargetModel,
 			"prompt_tokens":     usage.PromptTokens,
 			"completion_tokens": usage.CompletionTokens,
 			"total_tokens":      usage.TotalTokens,
-			"credits_spent":     reversePromptCredits,
-			"credits_remaining": creditsRemaining,
 			"latency_ms":        time.Since(startTime).Milliseconds(),
 		},
 	}
@@ -115,59 +118,27 @@ func ReversePrompt(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func deductReversePromptCredits(userID uint64, currentCredits, requiredCredits int) error {
-	if requiredCredits <= 0 {
-		return nil
-	}
-	if currentCredits < requiredCredits {
-		return errors.New("钻石不足")
-	}
-
-	updateResult := db.DB.Model(&db.User{}).Where("id = ? AND credits >= ?", userID, requiredCredits).
-		Updates(map[string]interface{}{
-			"credits":    gorm.Expr("credits - ?", requiredCredits),
-			"updated_at": time.Now(),
-		})
-	if updateResult.Error != nil || updateResult.RowsAffected == 0 {
-		return errors.New("钻石不足或扣费失败")
-	}
-
-	if err := recordCreditTransaction(
-		db.DB,
-		userID,
-		-requiredCredits,
-		CreditTxTypeReversePromptCost,
-		"reverse_prompt",
-		"",
-		"图片反推提示词",
-	); err != nil {
-		refundCredits(userID, requiredCredits, "reverse-prompt-ledger-write-failed")
-		return errors.New("记录钻石流水失败")
-	}
-	return nil
+type reversePromptChatRequest struct {
+	Model    string                     `json:"model"`
+	Messages []reversePromptChatMessage `json:"messages"`
 }
 
-type volcengineChatRequest struct {
-	Model    string                  `json:"model"`
-	Messages []volcengineChatMessage `json:"messages"`
-}
-
-type volcengineChatMessage struct {
+type reversePromptChatMessage struct {
 	Role    string      `json:"role"`
 	Content interface{} `json:"content"`
 }
 
-type volcengineChatContentPart struct {
-	Type     string                  `json:"type"`
-	Text     string                  `json:"text,omitempty"`
-	ImageURL *volcengineChatImageURL `json:"image_url,omitempty"`
+type reversePromptChatContentPart struct {
+	Type     string                     `json:"type"`
+	Text     string                     `json:"text,omitempty"`
+	ImageURL *reversePromptChatImageURL `json:"image_url,omitempty"`
 }
 
-type volcengineChatImageURL struct {
+type reversePromptChatImageURL struct {
 	URL string `json:"url"`
 }
 
-type volcengineChatResponse struct {
+type reversePromptChatResponse struct {
 	ID      string `json:"id"`
 	Choices []struct {
 		Message struct {
@@ -182,21 +153,14 @@ type volcengineChatResponse struct {
 	} `json:"usage"`
 }
 
-func callReversePromptAPI(req ReversePromptRequest) (string, struct {
+type reversePromptUsage struct {
 	PromptTokens     int
 	CompletionTokens int
 	TotalTokens      int
-}, error) {
-	var emptyUsage struct {
-		PromptTokens     int
-		CompletionTokens int
-		TotalTokens      int
-	}
+}
 
-	apiKey := strings.TrimSpace(config.GetVolcengineAPIKey())
-	if apiKey == "" {
-		return "", emptyUsage, errors.New("ARK_API_KEY is not configured")
-	}
+func callReversePromptAPI(req ReversePromptRequest, baseURL, apiKey, modelID string) (string, reversePromptUsage, error) {
+	var emptyUsage reversePromptUsage
 
 	systemPrompt := buildReversePromptSystemPrompt(req.Language, req.TargetModel)
 
@@ -205,10 +169,10 @@ func callReversePromptAPI(req ReversePromptRequest) (string, struct {
 		imageURL = "data:image/jpeg;base64," + imageURL
 	}
 
-	userContent := []volcengineChatContentPart{
+	userContent := []reversePromptChatContentPart{
 		{
 			Type:     "image_url",
-			ImageURL: &volcengineChatImageURL{URL: imageURL},
+			ImageURL: &reversePromptChatImageURL{URL: imageURL},
 		},
 		{
 			Type: "text",
@@ -216,9 +180,9 @@ func callReversePromptAPI(req ReversePromptRequest) (string, struct {
 		},
 	}
 
-	chatReq := volcengineChatRequest{
-		Model: reversePromptModel,
-		Messages: []volcengineChatMessage{
+	chatReq := reversePromptChatRequest{
+		Model: modelID,
+		Messages: []reversePromptChatMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userContent},
 		},
@@ -229,7 +193,7 @@ func callReversePromptAPI(req ReversePromptRequest) (string, struct {
 		return "", emptyUsage, fmt.Errorf("marshal request: %w", err)
 	}
 
-	endpoint := "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+	endpoint := buildUpstreamURL(baseURL, "/chat/completions")
 	httpReq, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", emptyUsage, fmt.Errorf("create request: %w", err)
@@ -237,7 +201,7 @@ func callReversePromptAPI(req ReversePromptRequest) (string, struct {
 	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := newProxyHTTPClient(60 * time.Second)
 	httpResp, err := client.Do(httpReq)
 	if err != nil {
 		return "", emptyUsage, fmt.Errorf("do request: %w", err)
@@ -249,27 +213,27 @@ func callReversePromptAPI(req ReversePromptRequest) (string, struct {
 		return "", emptyUsage, fmt.Errorf("read response: %w", err)
 	}
 	if httpResp.StatusCode >= http.StatusBadRequest {
-		return "", emptyUsage, fmt.Errorf("volcengine status=%d body=%s", httpResp.StatusCode, string(respBytes))
+		return "", emptyUsage, fmt.Errorf("upstream status=%d body=%s", httpResp.StatusCode, string(respBytes))
 	}
 
-	var parsed volcengineChatResponse
+	var parsed reversePromptChatResponse
 	if err := json.Unmarshal(respBytes, &parsed); err != nil {
 		return "", emptyUsage, fmt.Errorf("unmarshal response: %w", err)
 	}
 	if len(parsed.Choices) == 0 {
-		return "", emptyUsage, errors.New("volcengine returned empty choices")
+		return "", emptyUsage, errors.New("upstream returned empty choices")
 	}
 
 	prompt := strings.TrimSpace(parsed.Choices[0].Message.Content)
 	if prompt == "" {
-		return "", emptyUsage, errors.New("volcengine returned empty content")
+		return "", emptyUsage, errors.New("upstream returned empty content")
 	}
 
-	emptyUsage.PromptTokens = parsed.Usage.PromptTokens
-	emptyUsage.CompletionTokens = parsed.Usage.CompletionTokens
-	emptyUsage.TotalTokens = parsed.Usage.TotalTokens
-
-	return prompt, emptyUsage, nil
+	return prompt, reversePromptUsage{
+		PromptTokens:     parsed.Usage.PromptTokens,
+		CompletionTokens: parsed.Usage.CompletionTokens,
+		TotalTokens:      parsed.Usage.TotalTokens,
+	}, nil
 }
 
 func buildReversePromptSystemPrompt(language, targetModel string) string {

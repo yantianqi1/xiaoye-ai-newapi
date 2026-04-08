@@ -1,12 +1,15 @@
 <script setup>
 import { computed, h, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
+import axios from 'axios'
 import {
   UserOutlined,
   FileSearchOutlined,
   CameraOutlined,
   LockOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  AppstoreOutlined,
+  SettingOutlined
 } from '@ant-design/icons-vue'
 import { useAdminInspiration } from '../composables/useAdminInspiration'
 
@@ -21,7 +24,7 @@ const adminToken = ref(getStoredAdminToken())
 const loginTokenInput = ref(adminToken.value)
 const authLoading = ref(false)
 
-const activeModule = ref('inspiration_review')
+const activeModule = ref('model_management')
 const loading = ref(false)
 const activePostID = ref(0)
 const items = ref([])
@@ -36,6 +39,8 @@ const startDate = ref('')
 const endDate = ref('')
 
 const moduleMenuItems = [
+  { key: 'model_management', icon: () => h(AppstoreOutlined), label: '模型管理' },
+  { key: 'platform_config', icon: () => h(SettingOutlined), label: '平台设置' },
   { key: 'inspiration_review', icon: () => h(FileSearchOutlined), label: '灵感内容审核' },
   { key: 'user_list', icon: () => h(UserOutlined), label: '用户列表' },
   { key: 'generation_list', icon: () => h(CameraOutlined), label: '生成列表' }
@@ -48,18 +53,133 @@ const reviewStatusOptions = [
   { label: '已驳回', value: 'rejected' }
 ]
 
+// ====== Model Management ======
+const modelList = ref([])
+const modelLoading = ref(false)
+const showModelForm = ref(false)
+const editingModel = ref(null)
+const modelForm = ref({ model_id: '', name: '', type: 'image', api_type: 'task', icon_url: '', sort_order: 0, enabled: true })
+
+const fetchModels = async () => {
+  modelLoading.value = true
+  try {
+    const { data } = await axios.get('/api/admin/models', { headers: { 'X-Admin-Token': adminToken.value } })
+    modelList.value = data.models || []
+  } catch (e) {
+    message.error('加载模型列表失败')
+  } finally {
+    modelLoading.value = false
+  }
+}
+
+const openAddModel = () => {
+  editingModel.value = null
+  modelForm.value = { model_id: '', name: '', type: 'image', api_type: 'task', icon_url: '', sort_order: 0, enabled: true }
+  showModelForm.value = true
+}
+
+const openEditModel = (record) => {
+  editingModel.value = record
+  modelForm.value = { model_id: record.model_id, name: record.name, type: record.type, api_type: record.api_type || 'task', icon_url: record.icon_url, sort_order: record.sort_order, enabled: record.enabled }
+  showModelForm.value = true
+}
+
+const saveModel = async () => {
+  try {
+    if (editingModel.value) {
+      await axios.put(`/api/admin/models/${editingModel.value.id}`, modelForm.value, { headers: { 'X-Admin-Token': adminToken.value } })
+      message.success('更新成功')
+    } else {
+      await axios.post('/api/admin/models', modelForm.value, { headers: { 'X-Admin-Token': adminToken.value } })
+      message.success('添加成功')
+    }
+    showModelForm.value = false
+    await fetchModels()
+  } catch (e) {
+    message.error(e?.response?.data?.error || '保存失败')
+  }
+}
+
+const deleteModel = async (record) => {
+  try {
+    await axios.delete(`/api/admin/models/${record.id}`, { headers: { 'X-Admin-Token': adminToken.value } })
+    message.success('已删除')
+    await fetchModels()
+  } catch (e) {
+    message.error('删除失败')
+  }
+}
+
+const toggleModel = async (record) => {
+  try {
+    await axios.put(`/api/admin/models/${record.id}`, { enabled: !record.enabled }, { headers: { 'X-Admin-Token': adminToken.value } })
+    await fetchModels()
+  } catch (e) {
+    message.error('切换失败')
+  }
+}
+
+const modelColumns = [
+  { title: '排序', dataIndex: 'sort_order', width: 70 },
+  { title: '模型 ID', dataIndex: 'model_id' },
+  { title: '显示名称', dataIndex: 'name' },
+  { title: '类型', dataIndex: 'type', width: 90 },
+  { title: '图标', dataIndex: 'icon_url', width: 80 },
+  { title: '启用', dataIndex: 'enabled', width: 80 },
+  { title: '操作', dataIndex: 'actions', width: 200 }
+]
+
+// ====== Platform Config ======
+const newApiBaseUrl = ref('')
+const reversePromptModel = ref('')
+const configLoading = ref(false)
+
+const fetchConfig = async () => {
+  configLoading.value = true
+  try {
+    const headers = { 'X-Admin-Token': adminToken.value }
+    const [base, rev] = await Promise.all([
+      axios.get('/api/admin/config/newapi_base_url', { headers }),
+      axios.get('/api/admin/config/reverse_prompt_model', { headers })
+    ])
+    newApiBaseUrl.value = base.data.value || ''
+    reversePromptModel.value = rev.data.value || ''
+  } catch (e) {
+    // ignore
+  } finally {
+    configLoading.value = false
+  }
+}
+
+const saveConfig = async () => {
+  try {
+    const headers = { 'X-Admin-Token': adminToken.value }
+    await Promise.all([
+      axios.put('/api/admin/config/newapi_base_url', { value: newApiBaseUrl.value.trim() }, { headers }),
+      axios.put('/api/admin/config/reverse_prompt_model', { value: reversePromptModel.value.trim() }, { headers })
+    ])
+    message.success('保存成功')
+  } catch (e) {
+    message.error('保存失败')
+  }
+}
+
 const hasAdminToken = computed(() => !!adminToken.value)
 const pendingCountInPage = computed(() => items.value.filter((item) => item.review_status === 'pending').length)
 const approvedCountInPage = computed(() => items.value.filter((item) => item.review_status === 'approved').length)
 const rejectedCountInPage = computed(() => items.value.filter((item) => item.review_status === 'rejected').length)
 
 const moduleTitle = computed(() => {
+  if (activeModule.value === 'model_management') return '模型管理'
+  if (activeModule.value === 'platform_config') return '平台设置'
   if (activeModule.value === 'user_list') return '用户列表'
   if (activeModule.value === 'generation_list') return '生成列表'
   return '灵感内容审核'
 })
 
 const moduleSubTitle = computed(() => {
+  if (activeModule.value === 'model_management') return '管理用户可选的绘图和视频模型'
+  if (activeModule.value === 'platform_config') return '配置上游 NewAPI 地址等全局参数'
   if (activeModule.value === 'user_list') return '账号、状态与权限管理模块'
   if (activeModule.value === 'generation_list') return '任务、产物和状态追踪模块'
   return '发布内容审核、筛选与处理'
@@ -190,6 +310,12 @@ const onModuleSelect = async ({ key }) => {
   if (activeModule.value === 'inspiration_review' && hasAdminToken.value) {
     await fetchList(true)
   }
+  if (activeModule.value === 'model_management' && hasAdminToken.value) {
+    await fetchModels()
+  }
+  if (activeModule.value === 'platform_config' && hasAdminToken.value) {
+    await fetchConfig()
+  }
 }
 
 const refreshCurrent = async () => {
@@ -239,9 +365,13 @@ const columns = [
 ]
 
 onMounted(async () => {
-  if (hasAdminToken.value && activeModule.value === 'inspiration_review') {
+  if (hasAdminToken.value) {
     loginTokenInput.value = adminToken.value
-    await fetchList(true)
+    if (activeModule.value === 'model_management') {
+      await fetchModels()
+    } else if (activeModule.value === 'inspiration_review') {
+      await fetchList(true)
+    }
   }
 })
 </script>
@@ -446,6 +576,101 @@ onMounted(async () => {
                 @change="onPageChange"
               />
             </div>
+          </a-card>
+        </template>
+
+        <template v-else-if="activeModule === 'model_management'">
+          <a-card class="mb16">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h3 style="margin:0">模型列表</h3>
+              <a-button type="primary" @click="openAddModel">添加模型</a-button>
+            </div>
+            <a-table
+              :columns="modelColumns"
+              :data-source="modelList"
+              :loading="modelLoading"
+              :pagination="false"
+              :row-key="(r) => r.id"
+              size="middle"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'type'">
+                  <a-tag :color="record.type === 'image' ? 'blue' : 'purple'">{{ record.type === 'image' ? '图片' : '视频' }}</a-tag>
+                </template>
+                <template v-else-if="column.dataIndex === 'icon_url'">
+                  <img v-if="record.icon_url" :src="record.icon_url" style="width:24px;height:24px;border-radius:4px" />
+                  <span v-else style="color:#999">-</span>
+                </template>
+                <template v-else-if="column.dataIndex === 'enabled'">
+                  <a-switch :checked="record.enabled" size="small" @change="toggleModel(record)" />
+                </template>
+                <template v-else-if="column.dataIndex === 'actions'">
+                  <a-button size="small" @click="openEditModel(record)" style="margin-right:8px">编辑</a-button>
+                  <a-popconfirm title="确认删除？" @confirm="deleteModel(record)">
+                    <a-button size="small" danger>删除</a-button>
+                  </a-popconfirm>
+                </template>
+              </template>
+            </a-table>
+          </a-card>
+
+          <a-modal v-model:open="showModelForm" :title="editingModel ? '编辑模型' : '添加模型'" @ok="saveModel" width="500px">
+            <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" style="margin-top:16px">
+              <a-form-item label="模型 ID" required>
+                <a-input v-model:value="modelForm.model_id" placeholder="上游模型 ID，如 gpt-image-1" />
+              </a-form-item>
+              <a-form-item label="显示名称" required>
+                <a-input v-model:value="modelForm.name" placeholder="前端显示的名称" />
+              </a-form-item>
+              <a-form-item label="类型" required>
+                <a-radio-group v-model:value="modelForm.type">
+                  <a-radio-button value="image">图片</a-radio-button>
+                  <a-radio-button value="video">视频</a-radio-button>
+                </a-radio-group>
+              </a-form-item>
+              <a-form-item v-if="modelForm.type === 'video'" label="上游接口">
+                <a-radio-group v-model:value="modelForm.api_type">
+                  <a-radio-button value="task">异步任务 (/v1/video/generations)</a-radio-button>
+                  <a-radio-button value="chat">Chat 同步 (/v1/chat/completions)</a-radio-button>
+                </a-radio-group>
+                <div style="margin-top:6px;color:#999;font-size:12px">
+                  task: 上游为 OpenAI 兼容异步任务（kling/vidu/jimeng/sora/veo 等）<br>
+                  chat: 上游把视频生成封装为 chat 模型，响应里用 &lt;video&gt; 标签返回 URL（capcut/dreamina 等）
+                </div>
+              </a-form-item>
+              <a-form-item label="图标 URL">
+                <a-input v-model:value="modelForm.icon_url" placeholder="可选，模型图标地址" />
+              </a-form-item>
+              <a-form-item label="排序">
+                <a-input-number v-model:value="modelForm.sort_order" :min="0" />
+              </a-form-item>
+              <a-form-item label="启用">
+                <a-switch v-model:checked="modelForm.enabled" />
+              </a-form-item>
+            </a-form>
+          </a-modal>
+        </template>
+
+        <template v-else-if="activeModule === 'platform_config'">
+          <a-card class="mb16">
+            <h3 style="margin:0 0 16px">上游 NewAPI 配置</h3>
+            <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 14 }">
+              <a-form-item label="NewAPI Base URL">
+                <a-input v-model:value="newApiBaseUrl" placeholder="https://your-newapi.example.com" size="large" />
+                <div style="margin-top:8px;color:#999;font-size:12px">
+                  所有用户的 API 请求都会转发到这个地址。格式如 https://api.example.com （无需 /v1 后缀）
+                </div>
+              </a-form-item>
+              <a-form-item label="图片反推模型">
+                <a-input v-model:value="reversePromptModel" placeholder="例如 gpt-4o 或 doubao-seed-vision" size="large" />
+                <div style="margin-top:8px;color:#999;font-size:12px">
+                  /api/tools/reverse-prompt 使用的视觉模型 ID，走上游 NewAPI 的 /v1/chat/completions，鉴权用用户自己的 API Key
+                </div>
+              </a-form-item>
+              <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+                <a-button type="primary" @click="saveConfig" :loading="configLoading">保存</a-button>
+              </a-form-item>
+            </a-form>
           </a-card>
         </template>
 

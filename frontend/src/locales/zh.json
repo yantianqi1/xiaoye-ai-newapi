@@ -7,7 +7,7 @@
   "sidebar.joinCommunity": "加入社群",
   "sidebar.communityTitle": "加入 AI 创作社群",
   "sidebar.communityDesc": "AI 绘图 · AI 视频 · 创意交流\n不定期发放免费创作额度",
-  "sidebar.communityHint": "微信扫码入群",
+  "sidebar.communityHint": "点击加入 QQ 群",
   "sidebar.myAccount": "我的账户",
   "sidebar.inviteFriends": "邀请好友",
   "sidebar.theme": "主题",
@@ -200,7 +200,6 @@
   "composer.optimizeEmptyHint": "点击优化生成提示词建议",
   "composer.optimizeEcommerceTitle": "已生成 {count} 个商品图片提示词",
   "composer.optimizeEcommerceSubtitle": "每个提示词对应不同类型的商品图",
-
   "editor.title": "局部重绘",
   "editor.brushSize": "笔刷大小",
   "editor.undo": "撤销",
@@ -211,7 +210,6 @@
   "editor.noMask": "请先在图片上涂抹要修改的区域",
   "editor.noPrompt": "请输入修改描述",
   "editor.balance": "余额",
-
   "generate.queued": "排队中...",
   "generate.running": "生成中...",
   "generate.generating": "生成中...",
@@ -531,5 +529,14 @@
   "bind.submitting": "绑定中...",
   "bind.success": "邮箱绑定成功",
   "bind.failed": "绑定失败",
-  "bind.hint": "绑定邮箱后可使用邮箱登录和密码重置"
+  "bind.hint": "绑定邮箱后可使用邮箱登录和密码重置",
+  "apiKey.title": "API Key 设置",
+  "apiKey.description": "输入你在上游平台购买的 API Key，生成将直接使用你的额度。",
+  "apiKey.placeholder": "输入你的 API Key (sk-...)",
+  "apiKey.save": "保存",
+  "apiKey.clear": "清除",
+  "apiKey.hint": "Key 仅保存在当前浏览器本地，不会上传到服务���。换设备需要重新输入。",
+  "sidebar.apiKey": "API Key",
+  "sidebar.apiKeySet": "已设置",
+  "sidebar.apiKeyNotSet": "未设置"
 }

@@ -10,6 +10,7 @@ import InviteModal from './components/InviteModal.vue'
 import RedeemModal from './components/RedeemModal.vue'
 import PricingModal from './components/PricingModal.vue'
 import BindEmailModal from './components/BindEmailModal.vue'
+import ApiKeyModal from './components/ApiKeyModal.vue'
 
 const userStore = useUserStore()
 const themeStore = useThemeStore()
@@ -335,6 +336,7 @@ onMounted(() => {
           <BindEmailModal
             v-if="userStore.showBindEmailModal"
           />
+          <ApiKeyModal />
         </div>
       </NDialogProvider>
     </NMessageProvider>

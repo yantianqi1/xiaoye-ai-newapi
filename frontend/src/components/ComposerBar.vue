@@ -4,9 +4,7 @@ import { NSpin, NDropdown, NPopover, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '../stores/user'
 import { useGenerate } from '../composables/useGenerate'
-import { usePricingStore } from '../stores/pricing'
 import { useModelsStore } from '../stores/models'
-import { filterRatiosForModel } from '../utils/imageModelCapabilities'
 
 const { t } = useI18n()
 
@@ -18,7 +16,6 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'update:creativeMode'])
 
 const userStore = useUserStore()
-const pricingStore = usePricingStore()
 const modelsStore = useModelsStore()
 const { uploadImageToOSS, optimizePrompt } = useGenerate()
 const message = useMessage()
@@ -65,7 +62,10 @@ const ecommercePlatforms = ['淘宝', '京东', '拼多多', '1688', '小红书'
 const ecommerceImageTypes = ['详情图', '白底主图', '产品单图']
 const ecommerceOutputCounts = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-const ecommerceSizeOptions = computed(() => pricingStore.getEcommerceSizeOptions())
+const ecommerceSizeOptions = computed(() => [
+  { label: '2K', value: '2K' },
+  { label: '4K', value: '4K' }
+])
 
 const baseImageRatios = [
   { value: '1:1', w: 16, h: 16 },
@@ -105,18 +105,8 @@ watch(selectedModel, (newModel) => {
     return
   }
   localStorage.setItem('selectedModel', safeModelId)
-  // 切换模型时检查当前尺寸是否仍可用。
-  const availableSizes = pricingStore.getImageSizeOptions(safeModelId)
-  const sizeExists = availableSizes.some(s => s.value === imageSize.value)
-  if (!sizeExists && availableSizes.length > 0) {
-    imageSize.value = availableSizes[0].value
-  }
-  // 切换模型时更新可用宽高比
-  const newRatios = filterRatiosForModel(safeModelId, baseImageRatios, extraFlashRatios)
-  imageRatios.value = newRatios
-  if (!newRatios.some(r => r.value === aspectRatio.value)) {
-    aspectRatio.value = '1:1'
-  }
+  // All ratios available in BYOK mode
+  imageRatios.value = baseImageRatios
 }, { immediate: true })
 watch(() => props.creativeMode, (mode) => {
   if (mode === 'ecommerce' && imageSize.value === '1K') imageSize.value = '2K'
@@ -137,14 +127,18 @@ const formatImageModelLabel = (model) => model.name
 const imageModelOptions = computed(() => modelsStore.imageModels.map(model => ({
   label: formatImageModelLabel(model),
   value: model.id,
-  icon: model.provider === 'volcengine' ? '/images/jmlogo.png' : null
+  icon: model.icon_url || null
 })))
 
-// 动态获取图片尺寸选项（根据选择的模型）
-const imageSizeOptions = computed(() => pricingStore.getImageSizeOptions(selectedModel.value))
+// Image size options (static in BYOK mode)
+const imageSizeOptions = computed(() => [
+  { label: '1K', value: '1K' },
+  { label: '2K', value: '2K' },
+  { label: '4K', value: '4K' }
+])
 
 // --- Video params ---
-const videoModel = ref('doubao-seedance-1-5-pro-251215')
+const videoModel = ref('')
 const videoResolution = ref('720p')
 const videoRatio = ref('16:9')
 const videoDuration = ref(5)
@@ -153,6 +147,15 @@ const firstFramePreview = ref(null)
 const firstFrameUrl = ref(null)
 const lastFramePreview = ref(null)
 const lastFrameUrl = ref(null)
+
+// Init videoModel when models loaded
+watch(() => modelsStore.loaded, (loaded) => {
+  if (!loaded) return
+  const vms = modelsStore.videoModels
+  if (vms.length > 0 && !videoModel.value) {
+    videoModel.value = vms[0].id
+  }
+}, { immediate: true })
 
 const isVeoModel = computed(() => videoModel.value.startsWith('veo-'))
 
@@ -205,12 +208,13 @@ const videoDurationOptions = computed(() => {
   return allVideoDurations.veo
 })
 
-// 视频模型下拉选项
-const videoModelOptions = [
-  { key: 'doubao-seedance-1-5-pro-251215', label: 'Seedance-1.5', icon: '/images/jmlogo.png' },
-  { key: 'veo-3.1-generate-preview', label: 'Veo 3.1', emoji: '✦' },
-]
-const currentVideoModel = computed(() => videoModelOptions.find(m => m.key === videoModel.value) || videoModelOptions[0])
+// 视频模型下拉选项 (from database)
+const videoModelOptions = computed(() => modelsStore.videoModels.map(m => ({
+  key: m.id,
+  label: m.name,
+  icon: m.icon_url || null
+})))
+const currentVideoModel = computed(() => videoModelOptions.value.find(m => m.key === videoModel.value) || videoModelOptions.value[0] || { key: '', label: '' })
 
 // 切换模型时重置不兼容的参数
 watch(videoModel, (newModel) => {
@@ -261,19 +265,7 @@ watch(videoResolution, (newRes) => {
 // --- Computed ---
 const hasUploadedImages = computed(() => uploadedImageUrls.value.length > 0)
 
-const requiredCredits = computed(() => {
-  if (props.creativeMode === 'video') {
-    if (isVeoModel.value) {
-      // Veo 3.1 按分辨率阶梯定价，原生含音频
-      return pricingStore.getVeoCredits(videoResolution.value, videoDuration.value)
-    }
-    return pricingStore.getVideoCredits(videoResolution.value, videoDuration.value, generateAudio.value)
-  } else if (props.creativeMode === 'ecommerce') {
-    return pricingStore.getEcommerceCredits(imageSize.value, outputCount.value)
-  } else {
-    return pricingStore.getImageCredits(selectedModel.value, imageSize.value)
-  }
-})
+// Credits not used in BYOK mode
 
 // --- Dropdown helpers ---
 const modeDropOptions = computed(() => [
@@ -300,7 +292,7 @@ const selectedImageModel = computed(() => {
 const modelLabel = computed(() => selectedImageModel.value ? formatImageModelLabel(selectedImageModel.value) : '')
 const modelIcon = computed(() => {
   if (!selectedImageModel.value) return null
-  return selectedImageModel.value.provider === 'volcengine' ? '/images/jmlogo.png' : null
+  return selectedImageModel.value.icon_url || null
 })
 const onModelSelect = (modelId) => {
   selectedModel.value = modelsStore.ensureModelId(modelId)
@@ -335,7 +327,7 @@ const buildCurrentParams = () => {
 
   if (props.creativeMode === 'ecommerce') {
     return {
-      model: pricingStore.ecommerceModel,
+      model: selectedModel.value,
       aspectRatio: aspectRatio.value,
       imageSize: imageSize.value,
       outputCount: outputCount.value,
@@ -448,7 +440,7 @@ const sendMessage = () => {
     }
   } else if (props.creativeMode === 'ecommerce') {
     payload.params = {
-      model: pricingStore.ecommerceModel,
+      model: selectedModel.value,
       aspectRatio: aspectRatio.value,
       imageSize: imageSize.value,
       outputCount: outputCount.value,
@@ -464,7 +456,6 @@ const sendMessage = () => {
     if (uploadedImageUrls.value.length > 0) payload.images = [...uploadedImageUrls.value]
   }
 
-  payload.credits = requiredCredits.value
   emit('submit', payload)
 
   // Clear inputs
@@ -670,8 +661,6 @@ defineExpose({ fillPrompt, fillFromGeneration, fillEditImage })
             <button class="action-chip optimize-chip" :disabled="optimizingPrompt" @click="runPromptOptimization()" :title="$t('composer.optimizeAction')">
               <NSpin v-if="optimizingPrompt" size="small" :stroke-width="20" />
               <template v-else>
-                <svg class="chip-diamond" width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 8L12 22L20 8L12 2Z M6 8H18L12 3L6 8Z"/></svg>
-                <span class="optimize-cost">2</span>
                 <span>AI</span>
               </template>
             </button>
@@ -782,7 +771,7 @@ defineExpose({ fillPrompt, fillFromGeneration, fillEditImage })
             <NDropdown
               :options="videoModelOptions.map(m => ({
                 label: () => h('span', { style: 'display:flex;align-items:center;gap:6px' }, [
-                  m.icon ? h('img', { src: m.icon, style: 'width:16px;height:16px;border-radius:3px' }) : h('span', { style: 'width:16px;text-align:center;font-size:14px' }, m.emoji),
+                  m.icon ? h('img', { src: m.icon, style: 'width:16px;height:16px;border-radius:3px' }) : h('span', { style: 'width:16px;text-align:center;font-size:14px' }, '🎬'),
                   m.label
                 ]),
                 key: m.key
@@ -793,7 +782,7 @@ defineExpose({ fillPrompt, fillFromGeneration, fillEditImage })
             >
               <button class="pill">
                 <img v-if="currentVideoModel.icon" :src="currentVideoModel.icon" class="pill-icon" />
-                <span v-else style="font-size:14px;margin-right:2px">{{ currentVideoModel.emoji }}</span>
+                <span v-else style="font-size:14px;margin-right:2px">🎬</span>
                 {{ currentVideoModel.label }}
                 <svg class="pill-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
               </button>
@@ -837,7 +826,6 @@ defineExpose({ fillPrompt, fillFromGeneration, fillEditImage })
         </div>
 
         <div class="toolbar-right">
-          <span class="credits-badge"><svg class="credits-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 8L12 22L20 8L12 2Z"/></svg> {{ requiredCredits }}</span>
           <button class="send-btn" :disabled="loading || (!prompt.trim() && !hasUploadedImages) || (creativeMode === 'ecommerce' && !hasUploadedImages)" @click="sendMessage">
             <NSpin v-if="loading" size="small" />
             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>

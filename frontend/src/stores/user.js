@@ -12,6 +12,26 @@ export const useUserStore = defineStore('user', () => {
   const showInviteModal = ref(false)
   const showPricingModal = ref(false)
   const showBindEmailModal = ref(false)
+  const showApiKeyModal = ref(false)
+
+  // API Key (stored in localStorage only)
+  const apiKey = ref(localStorage.getItem('userApiKey') || '')
+
+  function setApiKey(key) {
+    apiKey.value = key
+    if (key) {
+      localStorage.setItem('userApiKey', key)
+    } else {
+      localStorage.removeItem('userApiKey')
+    }
+  }
+
+  function hasApiKey() {
+    return !!apiKey.value
+  }
+
+  function openApiKeyModal() { showApiKeyModal.value = true }
+  function closeApiKeyModal() { showApiKeyModal.value = false }
 
   // 计算属性
   const userCredits = computed(() => currentUser.value?.credits || 0)
@@ -157,6 +177,8 @@ export const useUserStore = defineStore('user', () => {
     showInviteModal,
     showPricingModal,
     showBindEmailModal,
+    showApiKeyModal,
+    apiKey,
     // 计算属性
     userCredits,
     userNickname,
@@ -184,6 +206,10 @@ export const useUserStore = defineStore('user', () => {
     bindEmail,
     dailyCheckin,
     createPaymentOrder,
-    getPaymentStatus
+    getPaymentStatus,
+    setApiKey,
+    hasApiKey,
+    openApiKeyModal,
+    closeApiKeyModal
   }
 })

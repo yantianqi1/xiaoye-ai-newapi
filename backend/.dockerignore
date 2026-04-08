@@ -1,0 +1,6 @@
+.git
+*.md
+uploads/
+tmp/
+.env
+.DS_Store

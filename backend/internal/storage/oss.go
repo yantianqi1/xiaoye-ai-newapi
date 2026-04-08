@@ -23,6 +23,12 @@ var bucket *oss.Bucket
 var bucketName string
 var publicDomain string
 
+// localStorageDir is the fallback local directory when OSS is not configured.
+const localStorageDir = "/app/uploads"
+
+// useLocalStorage indicates whether to fall back to local file storage.
+var useLocalStorage bool
+
 // InitOSS initializes the Aliyun OSS client using environment variable credentials
 func InitOSS() error {
 	endpoint := os.Getenv("OSS_ENDPOINT")
@@ -101,14 +107,52 @@ func buildPublicURL(objectKey string) string {
 	return fmt.Sprintf("https://%s.%s/%s", bucketName, cleanEndpoint, objectKey)
 }
 
-// UploadImageData uploads image data (binary) to OSS
-// imageData: binary image data
-// licenseID: user license ID
-// directory: target directory (e.g., "banana" or "useredit")
-// returns: public URL of the uploaded image
+// InitLocalStorage sets up local file storage as fallback.
+func InitLocalStorage() {
+	if err := os.MkdirAll(localStorageDir, 0755); err != nil {
+		log.Printf("warning: failed to create local storage dir %s: %v", localStorageDir, err)
+		return
+	}
+	useLocalStorage = true
+	log.Printf("本地文件存储已启用: %s", localStorageDir)
+}
+
+// LocalStorageDir returns the local uploads directory path for serving static files.
+func LocalStorageDir() string {
+	return localStorageDir
+}
+
+// uploadLocal saves binary data to a local file and returns a URL path.
+func uploadLocal(data []byte, directory, ext string) (string, error) {
+	subDir := fmt.Sprintf("%s/%s", localStorageDir, directory)
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return "", fmt.Errorf("创建目录失败: %v", err)
+	}
+
+	timestamp := time.Now().UnixNano() / 1e6
+	randBytes := make([]byte, 4)
+	rand.Read(randBytes)
+	filename := fmt.Sprintf("%d_%s%s", timestamp, hex.EncodeToString(randBytes), ext)
+	filePath := fmt.Sprintf("%s/%s", subDir, filename)
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return "", fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	// Return a path that will be served by the backend at /api/uploads/...
+	urlPath := fmt.Sprintf("/api/uploads/%s/%s", directory, filename)
+	log.Printf("本地文件保存成功: %s", urlPath)
+	return urlPath, nil
+}
+
+// UploadImageData uploads image data (binary) to OSS or local storage.
 func UploadImageData(imageData []byte, licenseID string, directory string) (string, error) {
+	if bucket == nil && !useLocalStorage {
+		return "", fmt.Errorf("OSS 客户端未初始化且本地存储未启用")
+	}
+
 	if bucket == nil {
-		return "", fmt.Errorf("OSS 客户端未初始化")
+		return uploadLocal(imageData, directory, ".png")
 	}
 
 	// Generate unique filename with random suffix to prevent collision
@@ -136,8 +180,8 @@ func UploadImageData(imageData []byte, licenseID string, directory string) (stri
 // directory: target directory (e.g., "banana" or "useredit")
 // returns: public URL of the uploaded image
 func UploadBase64Image(base64Data string, licenseID string, directory string) (string, error) {
-	if bucket == nil {
-		return "", fmt.Errorf("OSS 客户端未初始化")
+	if bucket == nil && !useLocalStorage {
+		return "", fmt.Errorf("OSS 客户端未初始化且本地存储未启用")
 	}
 
 	// Decode base64 to binary
@@ -153,7 +197,7 @@ func UploadBase64Image(base64Data string, licenseID string, directory string) (s
 
 // UploadVideoData uploads video binary data to OSS and returns public URL.
 func UploadVideoData(videoData []byte, userID string, extension string) (string, error) {
-	if bucket == nil {
+	if bucket == nil && !useLocalStorage {
 		return "", fmt.Errorf("OSS client is not initialized")
 	}
 	if len(videoData) == 0 {
@@ -166,6 +210,10 @@ func UploadVideoData(videoData []byte, userID string, extension string) (string,
 	}
 	if !strings.HasPrefix(ext, ".") {
 		ext = "." + ext
+	}
+
+	if bucket == nil {
+		return uploadLocal(videoData, "videos/"+userID, ext)
 	}
 
 	timestamp := time.Now().UnixNano() / 1e6
@@ -195,8 +243,8 @@ func UploadVideoData(videoData []byte, userID string, extension string) (string,
 // headers: 可选的请求头（如 Google API 需要 x-goog-api-key）
 // returns: OSS上的永久URL
 func DownloadAndUploadVideo(videoURL string, userID string, headers ...map[string]string) (string, error) {
-	if bucket == nil {
-		return "", fmt.Errorf("OSS 客户端未初始化")
+	if bucket == nil && !useLocalStorage {
+		return "", fmt.Errorf("OSS 客户端未初始化且本地存储未启用")
 	}
 	log.Printf("downloading video: %s", videoURL)
 	// 下载视频（Google 等需要代理的 URL 自动走代理）
@@ -231,6 +279,10 @@ func DownloadAndUploadVideo(videoURL string, userID string, headers ...map[strin
 	if err != nil {
 		log.Printf("读取视频数据失败 [用户:%s]: %v", userID, err)
 		return "", fmt.Errorf("读取视频数据失败: %v", err)
+	}
+
+	if bucket == nil {
+		return uploadLocal(videoData, "videos/"+userID, ".mp4")
 	}
 
 	// 生成唯一文件名（含随机后缀防碰撞）
