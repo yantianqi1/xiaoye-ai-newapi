@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
-  const themeMode = ref(localStorage.getItem('themeMode') || 'dark')
+  const themeMode = ref(localStorage.getItem('themeMode') || 'light')
 
   const systemDark = ref(
     window.matchMedia('(prefers-color-scheme: dark)').matches

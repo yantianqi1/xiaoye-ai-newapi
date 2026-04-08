@@ -714,27 +714,6 @@ const handleLinuxDoLogin = async () => {
         </button>
       </form>
 
-      <!-- OAuth 分割线 + 按钮 (仅登录模式显示) -->
-      <template v-if="mode === 'login'">
-        <div class="oauth-divider">
-          <span class="divider-line"></span>
-          <span class="divider-text">{{ $t('auth.orDivider') }}</span>
-          <span class="divider-line"></span>
-        </div>
-        <button
-          class="oauth-btn linuxdo-btn"
-          @click="handleLinuxDoLogin"
-          :disabled="oauthLoading"
-        >
-          <span v-if="oauthLoading" class="spinner-small"></span>
-          <svg v-else class="oauth-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-          {{ $t('auth.loginWithLinuxDo') }}
-        </button>
-      </template>
-
       <!-- 底部切换 -->
       <div class="auth-footer">
         <template v-if="mode === 'redeem' || mode === 'reset'">
