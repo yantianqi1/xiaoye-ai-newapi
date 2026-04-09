@@ -350,7 +350,26 @@ func InitDB() {
 	}
 
 	runMigrations()
+	seedDefaults()
 	log.Println("database initialized")
+}
+
+// seedDefaults backfills empty platform_config rows with sane defaults so the
+// admin UI shows the effective value instead of a blank field on fresh installs.
+func seedDefaults() {
+	defaults := map[string]string{
+		"newapi_base_url": "https://ai.iisbo.com",
+	}
+	for key, val := range defaults {
+		current := GetConfig(key)
+		if strings.TrimSpace(current) == "" {
+			if err := SetConfig(key, val); err != nil {
+				log.Printf("seed default %s failed: %v", key, err)
+			} else {
+				log.Printf("seeded default %s=%s", key, val)
+			}
+		}
+	}
 }
 
 // runMigrations executes SQL migration files that have not been applied yet.
