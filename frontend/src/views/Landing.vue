@@ -11,6 +11,11 @@ const announcements = [
     title: t('landing.announcement1Title'),
     content: t('landing.announcement1Content'),
   },
+  {
+    date: t('landing.announcement2Date'),
+    title: t('landing.announcement2Title'),
+    content: t('landing.announcement2Content'),
+  },
 ]
 
 const steps = [
