@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"google-ai-proxy/internal/api"
 	adminapi "google-ai-proxy/internal/api/admin"
@@ -66,27 +65,15 @@ func main() {
 
 	r := gin.Default()
 
+	// CORS: always allow any origin. The app does not rely on cookies for
+	// auth (admin uses X-Admin-Token, users use Bearer JWT), so there is no
+	// CSRF surface that origin restriction would protect. Hard-coding
+	// AllowAllOrigins also prevents stale per-host whitelists in .env files
+	// from breaking deployments on new IPs/domains.
 	corsConfig := cors.DefaultConfig()
-	corsOrigins := strings.TrimSpace(config.GetCORSOrigins())
+	corsConfig.AllowAllOrigins = true
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Admin-Token", "X-User-Api-Key"}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"}
-	if corsOrigins == "" || corsOrigins == "*" {
-		// Default: allow any origin. Keeps the app usable on arbitrary
-		// hostnames/IPs without forcing operators to maintain a whitelist.
-		// AllowAllOrigins is incompatible with AllowCredentials, which we
-		// do not need (admin auth is via X-Admin-Token, JWT goes in
-		// Authorization header — neither relies on cookies).
-		corsConfig.AllowAllOrigins = true
-	} else {
-		parts := strings.Split(corsOrigins, ",")
-		cleaned := parts[:0]
-		for _, p := range parts {
-			if v := strings.TrimSpace(p); v != "" {
-				cleaned = append(cleaned, v)
-			}
-		}
-		corsConfig.AllowOrigins = cleaned
-	}
 	r.Use(cors.New(corsConfig))
 
 	// Serve locally stored uploads
