@@ -16,7 +16,7 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    image: ${BACKEND_IMAGE:-ghcr.io/yantianqi1/xiaoye-ai-newapi-backend:latest}
     restart: unless-stopped
     environment:
       DB_HOST: mysql
@@ -71,7 +71,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    image: ${FRONTEND_IMAGE:-ghcr.io/yantianqi1/xiaoye-ai-newapi-frontend:latest}
     restart: unless-stopped
     ports:
       - "5010:80"
@@ -79,7 +79,7 @@ services:
       - backend
 
   frontend-admin:
-    build: ./frontend-admin
+    image: ${FRONTEND_ADMIN_IMAGE:-ghcr.io/yantianqi1/xiaoye-ai-newapi-frontend-admin:latest}
     restart: unless-stopped
     ports:
       - "5011:80"
