@@ -281,22 +281,6 @@ func Register(c *gin.Context) {
 
 	tx.Commit()
 
-	// 发送欢迎通知
-	welcomeNotification := db.UserNotification{
-		UserID:    user.ID,
-		BizKey:    fmt.Sprintf("welcome-%d", user.ID),
-		Title:     "欢迎来到 小野 AI ✨",
-		Summary:   "注册成功！你已获得 10 钻石，每日签到可免费领取更多钻石。",
-		Content:   "Hi，欢迎加入 小野 AI！🎉\n\n你已获得 10 颗钻石作为新人礼物，可以立即开始 AI 创作。\n\n💡 几个小贴士帮你快速上手：\n\n1. **免费获取钻石** — 每日签到即可领取钻石，连续签到奖励更多\n2. **开始创作** — 使用 BananaPro 模型，输入提示词即可生成精美图片和视频\n3. **灵感广场** — 浏览其他创作者的作品，一键「做同款」\n4. **加入社群** — 微信扫码加入 AI 创作者社群，交流技巧、获取免费额度\n\n祝你创作愉快！",
-		IsRead:    false,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if err := db.DB.Create(&welcomeNotification).Error; err != nil {
-		log.Printf("创建欢迎通知失败: %v", err)
-		// 不影响注册流程，仅记录日志
-	}
-
 	// 生成JWT令牌
 	token, err := auth.GenerateUserToken(user.ID, user.Email)
 	if err != nil {

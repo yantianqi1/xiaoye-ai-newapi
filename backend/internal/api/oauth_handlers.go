@@ -289,21 +289,6 @@ func createOAuthUser(linuxDoID string, info *linuxDoUser) (db.User, error) {
 		return db.User{}, fmt.Errorf("create credit tx failed: %w", err)
 	}
 
-	// Create welcome notification
-	notification := db.UserNotification{
-		UserID:    user.ID,
-		BizKey:    fmt.Sprintf("welcome_%d", user.ID),
-		Title:     "欢迎来到 小野 AI",
-		Summary:   "注册成功！你已获得 10 钻石，每日签到可免费领取更多钻石。",
-		Content:   "Hi，欢迎加入 小野 AI！\n\n你已获得 10 颗钻石作为新人礼物，可以立即开始 AI 创作。\n\n每日签到即可领取更多钻石，连续签到奖励更多！",
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if err := tx.Create(&notification).Error; err != nil {
-		tx.Rollback()
-		return db.User{}, fmt.Errorf("create notification failed: %w", err)
-	}
-
 	if err := tx.Commit().Error; err != nil {
 		return db.User{}, fmt.Errorf("commit failed: %w", err)
 	}
