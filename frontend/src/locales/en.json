@@ -356,7 +356,7 @@
   "landing.announcementTitle": "📢 Announcements",
   "landing.announcement1Date": "2026-04-03",
   "landing.announcement1Title": "语画姬 is now live",
-  "landing.announcement1Content": "Welcome to 语画姬 AI platform! Supports image and video generation. Register now to receive trial credits.",
+  "landing.announcement1Content": "名为：蛋糕api 的novel中转站说明：\n\n文生图api站，可在酒馆或tavo或支持正则和支持novel官方接入方式的项目中接入生图(非百分百适配)：https://keai.keai.shop\n\n可在网站上注册充值并创建令牌，教程可看网站首页，同时本网站可直接输入蛋糕api的秘钥使用novel绘画",
   "landing.stepsTitle": "Get Started in 3 Steps",
   "landing.step1Title": "Create Account",
   "landing.step1Desc": "Visit the platform, register with your email, and log in to access all features.",
