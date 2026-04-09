@@ -27,7 +27,7 @@ services:
       PORT: 8092
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_TOKEN: ${ADMIN_TOKEN}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:81}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
       INSPIRATION_AUTO_APPROVE: ${INSPIRATION_AUTO_APPROVE:-false}
       # AI Providers
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}

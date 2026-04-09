@@ -67,13 +67,26 @@ func main() {
 	r := gin.Default()
 
 	corsConfig := cors.DefaultConfig()
-	corsOrigins := config.GetCORSOrigins()
-	if corsOrigins != "" {
-		corsConfig.AllowOrigins = strings.Split(corsOrigins, ",")
-	} else {
-		corsConfig.AllowOrigins = []string{"http://localhost:5173", "http://localhost:5174"}
-	}
+	corsOrigins := strings.TrimSpace(config.GetCORSOrigins())
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Admin-Token", "X-User-Api-Key"}
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"}
+	if corsOrigins == "" || corsOrigins == "*" {
+		// Default: allow any origin. Keeps the app usable on arbitrary
+		// hostnames/IPs without forcing operators to maintain a whitelist.
+		// AllowAllOrigins is incompatible with AllowCredentials, which we
+		// do not need (admin auth is via X-Admin-Token, JWT goes in
+		// Authorization header — neither relies on cookies).
+		corsConfig.AllowAllOrigins = true
+	} else {
+		parts := strings.Split(corsOrigins, ",")
+		cleaned := parts[:0]
+		for _, p := range parts {
+			if v := strings.TrimSpace(p); v != "" {
+				cleaned = append(cleaned, v)
+			}
+		}
+		corsConfig.AllowOrigins = cleaned
+	}
 	r.Use(cors.New(corsConfig))
 
 	// Serve locally stored uploads
