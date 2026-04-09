@@ -50,7 +50,7 @@ const handleEnter = () => {
         <!-- 蛋糕 API · NovelAI 中转站 -->
         <a
           class="l-promo"
-          href="https://keai.keai.shop"
+          href="https://buyapi.iisbo.com/"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -63,7 +63,7 @@ const handleEnter = () => {
               欢迎前往站内注册、充值并创建密钥。
             </p>
             <span class="l-promo-link">
-              keai.keai.shop
+              buyapi.iisbo.com
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg>
             </span>
           </div>
