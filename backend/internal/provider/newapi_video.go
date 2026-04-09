@@ -47,8 +47,15 @@ type newapiOpenAIVideo struct {
 
 // ---- 配置读取 ----
 
+// defaultNewAPIBaseURL is used when no upstream is configured in platform_config.
+const defaultNewAPIBaseURL = "https://ai.iisbo.com"
+
 func getNewAPIBaseURLFromDB() string {
-	return strings.TrimRight(strings.TrimSpace(db.GetConfig("newapi_base_url")), "/")
+	v := strings.TrimRight(strings.TrimSpace(db.GetConfig("newapi_base_url")), "/")
+	if v == "" {
+		return defaultNewAPIBaseURL
+	}
+	return v
 }
 
 func getNewAPIKeyFromDB() string {

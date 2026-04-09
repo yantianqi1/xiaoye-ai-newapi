@@ -22,9 +22,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// defaultNewAPIBaseURL is used when no upstream is configured in platform_config.
+const defaultNewAPIBaseURL = "https://ai.iisbo.com"
+
 // getNewAPIBaseURL reads the configured upstream NewAPI base URL.
+// Falls back to defaultNewAPIBaseURL when unset.
 func getNewAPIBaseURL() string {
-	return strings.TrimRight(strings.TrimSpace(db.GetConfig("newapi_base_url")), "/")
+	v := strings.TrimRight(strings.TrimSpace(db.GetConfig("newapi_base_url")), "/")
+	if v == "" {
+		return defaultNewAPIBaseURL
+	}
+	return v
 }
 
 // getUserAPIKey extracts the user's API key from the X-User-Api-Key header.
