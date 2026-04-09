@@ -52,28 +52,6 @@ const handleEnter = () => {
       <div class="l-card">
         <h2 class="l-announce-heading">{{ $t('landing.announcementTitle') }}</h2>
 
-        <!-- 蛋糕 API · NovelAI 中转站 -->
-        <a
-          class="l-promo"
-          href="https://buyapi.iisbo.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <div class="l-promo-badge">NovelAI 中转</div>
-          <div class="l-promo-body">
-            <div class="l-promo-title">蛋糕 API · 文生图中转站</div>
-            <p class="l-promo-desc">
-              提供 NovelAI 官方接口形式的文生图服务，可在 SillyTavern、Tavo
-              以及任何支持正则与 NovelAI 官方接入方式的项目中使用（非 100% 适配）。
-              欢迎前往站内注册、充值并创建密钥。
-            </p>
-            <span class="l-promo-link">
-              buyapi.iisbo.com
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg>
-            </span>
-          </div>
-        </a>
-
         <div
           v-for="(item, i) in announcements"
           :key="i"
@@ -83,7 +61,7 @@ const handleEnter = () => {
             <span class="l-announce-title">{{ item.title }}</span>
             <span class="l-announce-date">{{ item.date }}</span>
           </div>
-          <p class="l-announce-content">{{ item.content }}</p>
+          <div class="l-announce-content" v-html="item.content"></div>
         </div>
       </div>
     </section>
@@ -306,6 +284,27 @@ const handleEnter = () => {
   color: #4b5563;
   margin: 0;
   line-height: 1.7;
+}
+.l-announce-content :deep(p) {
+  margin: 0 0 8px;
+}
+.l-announce-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.l-announce-content :deep(strong) {
+  color: #111827;
+  font-weight: 600;
+}
+.l-announce-content :deep(a) {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+  word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.l-announce-content :deep(a:hover) {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
 }
 
 /* ===== Promo Card ===== */
