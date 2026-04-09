@@ -46,6 +46,29 @@ const handleEnter = () => {
     <section class="l-section">
       <div class="l-card">
         <h2 class="l-announce-heading">{{ $t('landing.announcementTitle') }}</h2>
+
+        <!-- 蛋糕 API · NovelAI 中转站 -->
+        <a
+          class="l-promo"
+          href="https://keai.keai.shop"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div class="l-promo-badge">NovelAI 中转</div>
+          <div class="l-promo-body">
+            <div class="l-promo-title">蛋糕 API · 文生图中转站</div>
+            <p class="l-promo-desc">
+              提供 NovelAI 官方接口形式的文生图服务，可在 SillyTavern、Tavo
+              以及任何支持正则与 NovelAI 官方接入方式的项目中使用（非 100% 适配）。
+              欢迎前往站内注册、充值并创建密钥。
+            </p>
+            <span class="l-promo-link">
+              keai.keai.shop
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg>
+            </span>
+          </div>
+        </a>
+
         <div
           v-for="(item, i) in announcements"
           :key="i"
@@ -278,6 +301,67 @@ const handleEnter = () => {
   color: #4b5563;
   margin: 0;
   line-height: 1.7;
+}
+
+/* ===== Promo Card ===== */
+.l-promo {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin: 4px 0 22px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+  border: 1px solid #e9d5ff;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.l-promo:hover {
+  transform: translateY(-1px);
+  border-color: #c4b5fd;
+  box-shadow: 0 8px 24px -12px rgba(124, 58, 237, 0.35);
+}
+
+.l-promo-badge {
+  flex-shrink: 0;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 2px;
+}
+
+.l-promo-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.l-promo-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.l-promo-desc {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.7;
+  margin: 0 0 10px;
+}
+
+.l-promo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7c3aed;
 }
 
 /* ===== Steps ===== */
