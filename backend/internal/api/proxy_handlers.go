@@ -767,6 +767,12 @@ func handleNewAPIPlatformVideoGenerate(
 //   直接出现的 https://...mp4 也作为最后兜底
 var chatVideoURLRe = regexp.MustCompile(`https?://[^\s"'<>)]+`)
 
+// chatVideoTagRe 提取 <video ...> 与 </video> 之间的内容（含跨行）
+var chatVideoTagRe = regexp.MustCompile(`(?s)<video[^>]*>\s*(.*?)\s*</video>`)
+
+// chatVideoSrcRe 提取 <video src="..."> 中的 URL
+var chatVideoSrcRe = regexp.MustCompile(`(?i)<video[^>]+src=["']([^"']+)["']`)
+
 // handleChatVideoGenerate 处理 chat-completions 风格的视频模型 (同步返回 URL)
 // 典型上游: newapi 的 capcut / dreamina / 封装型渠道
 // 请求: POST /v1/chat/completions { model, messages:[{role:user, content:prompt}] }
@@ -826,7 +832,7 @@ func handleChatVideoGenerate(
 		client := &http.Client{
 			Timeout: 0,
 			Transport: &http.Transport{
-				ResponseHeaderTimeout: 60 * time.Second, // 等首字节最多 1 分钟
+				ResponseHeaderTimeout: 10 * time.Minute, // 视频生成耗时长,等首字节最多 10 分钟
 				IdleConnTimeout:       90 * time.Second,
 			},
 		}
@@ -905,18 +911,39 @@ func handleChatVideoGenerate(
 		content := contentBuf.String()
 		log.Printf("[Proxy/ChatVideo] 流式累积完成 [记录:%d] 长度=%d 内容=%s", genID, len(content), truncate(content, 500))
 
-		// 从 content 中抽取 URL —— 优先找 .mp4，其次任何 http(s) 链接
+		// 上游可能返回 <video>...</video> 包裹的 URL，且 URL 可能跨行。
+		// 按优先级提取: 1) <video src="..."> 2) <video>标签体内URL 3) 兜底全文匹配
 		videoURL := ""
-		for _, u := range chatVideoURLRe.FindAllString(content, -1) {
-			u = strings.TrimRight(u, ".,;:!?")
-			if strings.Contains(strings.ToLower(u), ".mp4") || strings.Contains(u, "/video/") {
-				videoURL = u
-				break
+
+		// 优先: <video src="https://...">
+		if m := chatVideoSrcRe.FindStringSubmatch(content); len(m) > 1 {
+			videoURL = strings.TrimSpace(m[1])
+		}
+
+		// 其次: <video ...> URL </video>，标签体可能含换行，去掉空白后拼成完整URL
+		if videoURL == "" {
+			if m := chatVideoTagRe.FindStringSubmatch(content); len(m) > 1 {
+				body := strings.Join(strings.Fields(m[1]), "")
+				if u := chatVideoURLRe.FindString(body); u != "" {
+					videoURL = strings.TrimRight(u, ".,;:!?")
+				}
 			}
 		}
+
+		// 兜底: 全文压缩空白后正则匹配
 		if videoURL == "" {
-			if m := chatVideoURLRe.FindString(content); m != "" {
-				videoURL = strings.TrimRight(m, ".,;:!?")
+			cleaned := strings.Join(strings.Fields(content), "")
+			for _, u := range chatVideoURLRe.FindAllString(cleaned, -1) {
+				u = strings.TrimRight(u, ".,;:!?")
+				if strings.Contains(strings.ToLower(u), ".mp4") || strings.Contains(u, "/video/") {
+					videoURL = u
+					break
+				}
+			}
+			if videoURL == "" {
+				if m := chatVideoURLRe.FindString(cleaned); m != "" {
+					videoURL = strings.TrimRight(m, ".,;:!?")
+				}
 			}
 		}
 		if videoURL == "" {
