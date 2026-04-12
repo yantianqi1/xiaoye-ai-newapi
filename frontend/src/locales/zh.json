@@ -538,7 +538,7 @@
   "apiKey.placeholder": "输入你的 API Key (sk-...)",
   "apiKey.save": "保存",
   "apiKey.clear": "清除",
-  "apiKey.hint": "Key 仅保存在当前浏览器本地，不会上传到服务���。换设备需要重新输入。",
+  "apiKey.hint": "Key 仅保存在当前浏览器本地，不会上传到服务器。换设备需要重新输入。",
   "sidebar.apiKey": "API Key",
   "sidebar.apiKeySet": "已设置",
   "sidebar.apiKeyNotSet": "未设置"
