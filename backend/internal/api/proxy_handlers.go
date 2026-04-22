@@ -390,47 +390,15 @@ func proxyImageGeneration(client *http.Client, baseURL, apiKey, model, prompt, s
 }
 
 func proxyImageEdit(client *http.Client, baseURL, apiKey, model, prompt, size string, images []string, mask string) (*proxyImageResult, error) {
-	// For image editing, download images to base64 then use multipart
-	inputBase64s := make([]string, 0, len(images))
-	for _, imgURL := range images {
-		b64, err := downloadImageAsBase64(imgURL)
-		if err != nil {
-			return nil, fmt.Errorf("下载输入图片失败: %w", err)
-		}
-		inputBase64s = append(inputBase64s, b64)
-	}
-
-	var maskBase64 string
-	if mask != "" {
-		var err error
-		maskBase64, err = downloadImageAsBase64(mask)
-		if err != nil {
-			return nil, fmt.Errorf("下载mask图片失败: %w", err)
-		}
-	}
-
-	// Use JSON approach for edits
-	reqBody := map[string]interface{}{
-		"model":           model,
-		"prompt":          prompt,
-		"response_format": "b64_json",
-		"size":            size,
-		"n":               1,
-		"image":           inputBase64s[0],
-	}
-	if maskBase64 != "" {
-		reqBody["mask"] = maskBase64
-	}
-
-	bodyBytes, _ := json.Marshal(reqBody)
+	body, contentType, err := createImageEditMultipartBody(model, prompt, size, images, mask)
 	endpoint := buildUpstreamURL(baseURL, "/images/edits")
 
-	httpReq, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(string(bodyBytes)))
+	httpReq, err := http.NewRequest(http.MethodPost, endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", contentType)
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
