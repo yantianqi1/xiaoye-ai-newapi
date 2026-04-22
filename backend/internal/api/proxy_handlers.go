@@ -96,6 +96,7 @@ func UnifiedGenerate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效: " + err.Error()})
 		return
 	}
+	normalizeUnifiedGenerateRequestMedia(c, &req)
 
 	switch req.Type {
 	case "image":
@@ -761,10 +762,11 @@ func handleNewAPIPlatformVideoGenerate(
 
 // chatVideoURLRe 从 chat-completion 返回的 content 中提取视频 URL。
 // 兼容以下格式:
-//   <video controls="controls"> https://foo/bar.mp4 </video>
-//   <video src="https://foo/bar.mp4"></video>
-//   ![video](https://foo/bar.mp4)
-//   直接出现的 https://...mp4 也作为最后兜底
+//
+//	<video controls="controls"> https://foo/bar.mp4 </video>
+//	<video src="https://foo/bar.mp4"></video>
+//	![video](https://foo/bar.mp4)
+//	直接出现的 https://...mp4 也作为最后兜底
 var chatVideoURLRe = regexp.MustCompile(`https?://[^\s"'<>)]+`)
 
 // chatVideoTagRe 提取 <video ...> 与 </video> 之间的内容（含跨行）

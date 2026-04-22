@@ -123,3 +123,58 @@ func TestUploadImageAcceptsBase64JSON(t *testing.T) {
 		t.Fatalf("unexpected response URL: %s", resp.URL)
 	}
 }
+
+func TestUploadImageAbsolutizesLocalURLResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	oldBinaryUpload := uploadBinaryImage
+	oldBase64Upload := uploadBase64Image
+	uploadBinaryImage = func([]byte, string, string) (string, error) {
+		return "/api/uploads/useredit/sample.png", nil
+	}
+	uploadBase64Image = func(string, string, string) (string, error) {
+		t.Fatal("multipart upload should not use base64 path")
+		return "", nil
+	}
+	t.Cleanup(func() {
+		uploadBinaryImage = oldBinaryUpload
+		uploadBase64Image = oldBase64Upload
+	})
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "sample.png")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("fake-png-data")); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/user/upload/image", body)
+	req.Host = "yvhj.qtq.cc.cd"
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Forwarded-Proto", "https")
+	ctx.Request = req
+	ctx.Set("userID", uint64(9))
+
+	UploadImage(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	var resp UploadImageResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	want := "https://yvhj.qtq.cc.cd/api/uploads/useredit/sample.png"
+	if resp.URL != want {
+		t.Fatalf("expected %s, got %s", want, resp.URL)
+	}
+}

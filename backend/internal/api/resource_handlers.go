@@ -46,6 +46,7 @@ func UploadImage(c *gin.Context) {
 		respondUploadImageError(c, userID, err)
 		return
 	}
+	url = absolutizeMediaURL(url, requestPublicBaseURL(c))
 
 	c.JSON(http.StatusOK, UploadImageResponse{URL: url})
 }
@@ -153,6 +154,7 @@ func UploadVideo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload video"})
 		return
 	}
+	url = absolutizeMediaURL(url, requestPublicBaseURL(c))
 
 	c.JSON(http.StatusOK, UploadImageResponse{URL: url})
 }
