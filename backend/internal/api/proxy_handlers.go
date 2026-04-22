@@ -509,12 +509,11 @@ func proxyChatImageGenerate(client *http.Client, baseURL, apiKey, model, prompt 
 
 	// Add reference images first if any
 	for _, imgURL := range refImages {
-		contentParts = append(contentParts, map[string]interface{}{
-			"type": "image_url",
-			"image_url": map[string]string{
-				"url": imgURL,
-			},
-		})
+		imagePart, err := buildChatImageContentPart(imgURL)
+		if err != nil {
+			return nil, fmt.Errorf("处理参考图失败: %w", err)
+		}
+		contentParts = append(contentParts, imagePart)
 	}
 
 	// Add text prompt
