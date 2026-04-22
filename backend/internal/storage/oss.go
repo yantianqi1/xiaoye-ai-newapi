@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,11 +24,12 @@ var bucket *oss.Bucket
 var bucketName string
 var publicDomain string
 
-// localStorageDir is the fallback local directory when OSS is not configured.
-const localStorageDir = "/app/uploads"
+// defaultLocalStorageDirName is used when no explicit local storage directory is configured.
+const defaultLocalStorageDirName = "uploads"
 
 // useLocalStorage indicates whether to fall back to local file storage.
 var useLocalStorage bool
+var localStorageDir = defaultLocalStorageDirName
 
 // InitOSS initializes the Aliyun OSS client using environment variable credentials
 func InitOSS() error {
@@ -109,6 +111,7 @@ func buildPublicURL(objectKey string) string {
 
 // InitLocalStorage sets up local file storage as fallback.
 func InitLocalStorage() {
+	localStorageDir = resolveLocalStorageDir()
 	if err := os.MkdirAll(localStorageDir, 0755); err != nil {
 		log.Printf("warning: failed to create local storage dir %s: %v", localStorageDir, err)
 		return
@@ -120,6 +123,19 @@ func InitLocalStorage() {
 // LocalStorageDir returns the local uploads directory path for serving static files.
 func LocalStorageDir() string {
 	return localStorageDir
+}
+
+func resolveLocalStorageDir() string {
+	if dir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_DIR")); dir != "" {
+		return dir
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return defaultLocalStorageDirName
+	}
+
+	return filepath.Join(cwd, defaultLocalStorageDirName)
 }
 
 // uploadLocal saves binary data to a local file and returns a URL path.

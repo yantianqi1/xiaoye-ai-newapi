@@ -2,6 +2,9 @@ import { ref } from 'vue'
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
 
+const IMAGE_UPLOAD_FIELD = 'file'
+const DEFAULT_IMAGE_FILENAME = 'upload.png'
+
 export function useGenerate() {
   const userStore = useUserStore()
   const activePolls = ref({})
@@ -98,10 +101,38 @@ export function useGenerate() {
     Object.keys(activePolls.value).forEach(k => delete activePolls.value[k])
   }
 
-  async function uploadImageToOSS(base64Data) {
-    const response = await axios.post('/api/user/upload/image', {
-      image: base64Data.split(',')[1]
-    }, {
+  function dataUrlToBlob(dataUrl) {
+    const [meta, data] = dataUrl.split(',')
+    if (!meta || !data) throw new Error('无效的图片数据')
+    const mimeType = meta.match(/^data:(.*?);base64$/)?.[1] || 'image/png'
+    const binary = atob(data)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+    return new Blob([bytes], { type: mimeType })
+  }
+
+  function buildImageUploadFormData(source) {
+    const form = new FormData()
+    if (typeof File !== 'undefined' && source instanceof File) {
+      form.append(IMAGE_UPLOAD_FIELD, source, source.name)
+      return form
+    }
+    if (typeof Blob !== 'undefined' && source instanceof Blob) {
+      form.append(IMAGE_UPLOAD_FIELD, source, DEFAULT_IMAGE_FILENAME)
+      return form
+    }
+    if (typeof source === 'string' && source.startsWith('data:')) {
+      const blob = dataUrlToBlob(source)
+      const extension = blob.type.split('/')[1] || 'png'
+      form.append(IMAGE_UPLOAD_FIELD, blob, `upload.${extension}`)
+      return form
+    }
+    throw new Error('不支持的图片上传数据')
+  }
+
+  async function uploadImageToOSS(source) {
+    const formData = buildImageUploadFormData(source)
+    const response = await axios.post('/api/user/upload/image', formData, {
       headers: buildHeaders()
     })
     return response.data.url

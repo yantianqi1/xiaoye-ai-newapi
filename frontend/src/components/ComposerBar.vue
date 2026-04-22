@@ -33,6 +33,7 @@ const optimizePrimary = ref(null)
 
 const optimizeBackupPrompt = ref('')
 const optimizeRequestId = ref(0)  // 用于防重复请求
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
 
 // --- Prompt Optimize Style ---
 const selectedOptimizeStyle = ref('balanced')
@@ -473,28 +474,25 @@ const sendMessage = () => {
 
 const handleUpload = async (e) => {
   if (!userStore.requireAuth()) return
-  const files = e.target.files
-  if (!files?.length) return
+  const files = Array.from(e.target.files || [])
+  if (!files.length) return
   if (uploadedImageUrls.value.length + files.length > 3) return
   for (const file of files) {
-    if (file.size > 10 * 1024 * 1024) continue
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target.result
-      try {
-        const ossUrl = await uploadImageToOSS(dataUrl)
-        uploadedImagePreviews.value.push(dataUrl)
-        uploadedImageUrls.value.push(ossUrl)
-        // 电商模式保存 base64 数据
-        if (props.creativeMode === 'ecommerce') {
-          uploadedImageBase64s.value.push(dataUrl.split(',')[1])
-        }
-      } catch (err) {
-        console.error('上传图片失败:', err)
-        alert(t('composer.uploadFailed'))
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) continue
+    try {
+      const [dataUrl, ossUrl] = await Promise.all([
+        readFileAsDataUrl(file),
+        uploadImageToOSS(file)
+      ])
+      uploadedImagePreviews.value.push(dataUrl)
+      uploadedImageUrls.value.push(ossUrl)
+      if (props.creativeMode === 'ecommerce') {
+        uploadedImageBase64s.value.push(dataUrl.split(',')[1])
       }
+    } catch (err) {
+      console.error('上传图片失败:', err)
+      alert(t('composer.uploadFailed'))
     }
-    reader.readAsDataURL(file)
   }
   e.target.value = ''
 }
@@ -505,22 +503,27 @@ const removeUpload = (idx) => {
   if (uploadedImagePreviews.value.length === 0) uploadsExpanded.value = false
 }
 
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = (event) => resolve(event.target?.result || '')
+  reader.onerror = () => reject(new Error('读取图片失败'))
+  reader.readAsDataURL(file)
+})
+
 const handleFrameUpload = async (type, e) => {
   const file = e.target.files?.[0]
   if (!file) return
-  const reader = new FileReader()
-  reader.onload = async (ev) => {
-    const dataUrl = ev.target.result
-    try {
-      const ossUrl = await uploadImageToOSS(dataUrl)
-      if (type === 'first') { firstFramePreview.value = dataUrl; firstFrameUrl.value = ossUrl }
-      else { lastFramePreview.value = dataUrl; lastFrameUrl.value = ossUrl }
-    } catch (err) {
-      console.error('上传帧图片失败:', err)
-      alert(t('composer.uploadFailed'))
-    }
+  try {
+    const [dataUrl, ossUrl] = await Promise.all([
+      readFileAsDataUrl(file),
+      uploadImageToOSS(file)
+    ])
+    if (type === 'first') { firstFramePreview.value = dataUrl; firstFrameUrl.value = ossUrl }
+    else { lastFramePreview.value = dataUrl; lastFrameUrl.value = ossUrl }
+  } catch (err) {
+    console.error('上传帧图片失败:', err)
+    alert(t('composer.uploadFailed'))
   }
-  reader.readAsDataURL(file)
   e.target.value = ''
 }
 const removeFrame = (type) => {
