@@ -10,6 +10,7 @@ import { useInspiration } from '../composables/useInspiration'
 import { useComposerDraftStore } from '../stores/composerDraft'
 import { useModelsStore } from '../stores/models'
 import ComposerBar from '../components/ComposerBar.vue'
+import GenerationUserBubble from '../components/GenerationUserBubble.js'
 import ShareGenerationDialog from '../components/ShareGenerationDialog.vue'
 import ImageEditor from '../components/ImageEditor.vue'
 import { modelSupportsInpainting } from '../utils/imageModelCapabilities'
@@ -437,6 +438,11 @@ const handleScroll = (e) => {
 }
 
 const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('generate.running'), generating: t('generate.generating') }[s] || s)
+const getGenerationTypeLabel = (type) => {
+  if (type === 'video') return t('generate.video')
+  if (type === 'ecommerce') return t('generate.ecommerce')
+  return t('generate.image')
+}
 </script>
 
 <template>
@@ -451,9 +457,10 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
         <div class="date-divider"><span>{{ group.label }}</span></div>
         <template v-for="gen in group.items" :key="gen.id">
           <div class="chat-row user-row">
-            <div class="bubble user-bubble">
-              <p class="bubble-text">{{ gen.prompt }}</p>
-            </div>
+            <GenerationUserBubble
+              :prompt="gen.prompt"
+              :reference-images="gen.reference_images"
+            />
           </div>
           <div class="chat-row ai-row">
             <div class="ai-avatar"><img src="/images/jmlogo.png" alt="" class="ai-avatar-img" /></div>
@@ -576,10 +583,11 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
         <div class="date-divider"><span>{{ $t('generate.currentSession') }}</span></div>
         <template v-for="result in currentResults" :key="result.id">
           <div class="chat-row user-row">
-            <div class="bubble user-bubble">
-              <span class="bubble-tag">{{ result.type === 'video' ? $t('generate.video') : result.type === 'ecommerce' ? $t('generate.ecommerce') : $t('generate.image') }}</span>
-              <p class="bubble-text">{{ result.prompt }}</p>
-            </div>
+            <GenerationUserBubble
+              :prompt="result.prompt"
+              :tag="getGenerationTypeLabel(result.type)"
+              :reference-images="result.reference_images"
+            />
           </div>
           <div class="chat-row ai-row">
             <div class="ai-avatar"><img src="/images/jmlogo.png" alt="" class="ai-avatar-img" /></div>
@@ -801,7 +809,48 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
   line-height: 1.6;
   text-align: right;
 }
-.bubble-text {
+
+.generate-page :deep(.generation-user-bubble__images) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+  justify-items: end;
+}
+
+.generate-page :deep(.generation-user-bubble__images--single) {
+  grid-template-columns: 1fr;
+}
+
+.generate-page :deep(.generation-user-bubble__image-item) {
+  width: min(176px, 100%);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.generate-page :deep(.generation-user-bubble__image) {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.generate-page :deep(.generation-user-bubble__tag) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: rgba(0, 202, 224, 0.12);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.generate-page :deep(.generation-user-bubble__text) {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -908,6 +957,7 @@ const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('genera
   .timeline-area { padding: 12px 12px 10px; }
   .chat-row { padding: 0; }
   .user-bubble { max-width: 85%; font-size: 14px; }
+  .generate-page :deep(.generation-user-bubble__image-item) { width: min(140px, 100%); }
   .ai-bubble { flex: 1; }
   .ai-avatar { width: 24px; height: 24px; }
   .ai-avatar-img { width: 16px; height: 16px; }
