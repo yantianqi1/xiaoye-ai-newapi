@@ -314,7 +314,7 @@
   "landing.announcement1Content": "<p>名为：<strong>蛋糕api</strong> 的novel中转站说明：</p><p>文生图api站，可在酒馆或tavo或支持正则和支持novel官方接入方式的项目中接入生图(非百分百适配)：<a href=\"https://keai.keai.shop\" target=\"_blank\" rel=\"noopener noreferrer\">https://keai.keai.shop</a></p><p>可在网站上注册充值并创建令牌，教程可看网站首页，同时本网站可直接输入蛋糕api的秘钥使用novel绘画</p>",
   "landing.announcement2Date": "2026-04-09",
   "landing.announcement2Title": "其他生图模型次卡购买",
-  "landing.announcement2Content": "<p>本网站其他生图模型如<strong>香蕉</strong>，<strong>z-image</strong>等，可在<a href=\"https://buyapi.iisbo.com/\" target=\"_blank\" rel=\"noopener noreferrer\">https://buyapi.iisbo.com/</a>购买全模型次卡，直接填入秘钥使用</p>",
+  "landing.announcement2Content": "<p>本网站其他生图模型如<strong>gpt-image-2</strong>，<strong>香蕉</strong>，<strong>z-image</strong>等，可在<a href=\"https://buyapi.iisbo.com/\" target=\"_blank\" rel=\"noopener noreferrer\">https://buyapi.iisbo.com/</a>购买全模型次卡，直接填入秘钥使用</p>",
   "landing.stepsTitle": "三步开始创作",
   "landing.step1Title": "注册账号",
   "landing.step1Desc": "访问平台，使用邮箱完成注册，登录后即可使用所有功能。",
