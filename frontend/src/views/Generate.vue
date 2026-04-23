@@ -14,6 +14,11 @@ import GenerationUserBubble from '../components/GenerationUserBubble.js'
 import ShareGenerationDialog from '../components/ShareGenerationDialog.vue'
 import ImageEditor from '../components/ImageEditor.vue'
 import { modelSupportsInpainting } from '../utils/imageModelCapabilities'
+import {
+  buildGenerateSessionTimeline,
+  clearGenerateSessionResults,
+  hasGenerateSessionContent
+} from '../utils/generateSessionView'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -22,7 +27,7 @@ const genStore = useGenerationStore()
 const composerDraftStore = useComposerDraftStore()
 const modelsStore = useModelsStore()
 const message = useMessage()
-const { generate, pollVideoTask, pollTask, stopAllPolls, uploadImageToOSS } = useGenerate()
+const { generate, pollVideoTask, stopAllPolls, uploadImageToOSS } = useGenerate()
 const { markRemix, shareGeneration, unshareInspiration } = useInspiration()
 
 const composerRef = ref(null)
@@ -30,7 +35,6 @@ const creativeMode = ref('image')
 const loading = ref(false)
 const resultsContainer = ref(null)
 const currentResults = ref([])
-const isFirstLoad = ref(true)
 const shareLoadingIds = ref({})
 const generationIDToShare = ref(null)
 const generationToShare = ref(null)
@@ -45,12 +49,6 @@ onMounted(async () => {
   if (!modelsStore.loaded) {
     await modelsStore.loadModels()
   }
-  if (!genStore.hasLoaded) {
-    await genStore.load(true)
-  }
-  isFirstLoad.value = false
-
-  resumePendingPolls()
 
   if (genStore.pendingResult) {
     const pending = genStore.pendingResult
@@ -91,30 +89,6 @@ function applyComposerDraft() {
 
   if (draft.shareId) {
     markRemix(draft.shareId).catch(() => {})
-  }
-}
-
-function resumePendingPolls() {
-  const pendingStatuses = ['queued', 'running', 'generating']
-  for (const gen of genStore.generations) {
-    const taskId = gen.id || gen.task_id
-    if (taskId && pendingStatuses.includes(gen.status)) {
-      pollTask(taskId, (update) => {
-        if (update.status === 'success') {
-          gen.status = 'success'
-          gen.images = update.images || gen.images
-          gen.video_url = update.video_url || gen.video_url
-          gen.credits_cost = update.credits_spent
-          userStore.fetchUserInfo()
-        } else if (update.status === 'failed') {
-          gen.status = 'failed'
-          gen.error_msg = update.error_msg
-          userStore.fetchUserInfo()
-        } else {
-          gen.status = update.status
-        }
-      })
-    }
   }
 }
 
@@ -183,17 +157,32 @@ async function executeGeneration(resultItem, payload) {
   }
 }
 
-const timelineGroups = computed(() => {
-  const g = genStore.groupedGenerations
-  const result = []
-  if (g.older.length) result.push({ label: t('generate.older'), items: [...g.older].reverse() })
-  if (g.week.length) result.push({ label: t('generate.week'), items: [...g.week].reverse() })
-  if (g.yesterday.length) result.push({ label: t('generate.yesterday'), items: [...g.yesterday].reverse() })
-  if (g.today.length) result.push({ label: t('generate.today'), items: [...g.today].reverse() })
-  return result
-})
+const sessionTimelineGroups = computed(() => (
+  buildGenerateSessionTimeline(currentResults.value, t('generate.currentSession'))
+))
 
-const hasAnyContent = computed(() => currentResults.value.length > 0 || genStore.generations.length > 0)
+const hasAnyContent = computed(() => hasGenerateSessionContent(currentResults.value))
+
+function toStoredGeneration(resultItem) {
+  const storedGeneration = { ...resultItem }
+  delete storedGeneration._payload
+  delete storedGeneration.fromAssets
+  return storedGeneration
+}
+
+function updateStoredGeneration(resultItem) {
+  const stored = genStore.generations.find((gen) => gen.id === resultItem.id)
+  if (!stored) return false
+
+  Object.assign(stored, toStoredGeneration(resultItem))
+  return true
+}
+
+function persistSuccessfulGeneration(resultItem) {
+  if (updateStoredGeneration(resultItem)) return
+
+  genStore.prependGeneration({ ...toStoredGeneration(resultItem), created_at: Date.now() })
+}
 
 function startPoll(resultItem, taskId) {
   pollVideoTask(taskId, (update) => {
@@ -203,13 +192,12 @@ function startPoll(resultItem, taskId) {
       resultItem.video_url = update.video_url
       resultItem.credits_cost = update.credits_spent
       userStore.fetchUserInfo()
-      genStore.prependGeneration({ ...resultItem, created_at: Date.now() })
-      const idx = currentResults.value.findIndex(r => r.id === resultItem.id)
-      if (idx !== -1) currentResults.value.splice(idx, 1)
+      persistSuccessfulGeneration(resultItem)
       scrollToBottom(true)
     } else if (update.status === 'failed') {
       resultItem.status = 'failed'
       resultItem.error_msg = update.error_msg
+      updateStoredGeneration(resultItem)
       userStore.fetchUserInfo()
     } else {
       resultItem.status = update.status
@@ -234,6 +222,17 @@ const handleSubmit = async (payload) => {
   scrollToBottom()
 
   await executeGeneration(resultItem, payload)
+}
+
+const startNewConversation = () => {
+  currentResults.value = clearGenerateSessionResults(currentResults.value)
+  composerRef.value?.reset()
+  showImageEditor.value = false
+  scrollToTop(true)
+}
+
+const openAssetsHistory = () => {
+  router.push({ name: 'assets' })
 }
 
 const regenerate = (gen) => {
@@ -419,22 +418,15 @@ const scrollToBottom = (smooth = false) => {
   })
 }
 
-const hasUserScrolled = ref(false)
-let scrollTimeout = null
-
-const handleScroll = (e) => {
-  const el = e.target
-
-  if (!scrollTimeout) {
-    hasUserScrolled.value = true
-    scrollTimeout = setTimeout(() => {
-      scrollTimeout = null
-    }, 150)
-  }
-
-  if (el.scrollTop < 50 && !genStore.loading && !isFirstLoad.value) {
-    genStore.loadMore()
-  }
+const scrollToTop = (smooth = false) => {
+  nextTick(() => {
+    if (resultsContainer.value) {
+      resultsContainer.value.scrollTo({
+        top: 0,
+        behavior: smooth ? 'smooth' : 'auto'
+      })
+    }
+  })
 }
 
 const getStatusText = (s) => ({ queued: t('generate.queued'), running: t('generate.running'), generating: t('generate.generating') }[s] || s)
@@ -447,141 +439,34 @@ const getGenerationTypeLabel = (type) => {
 
 <template>
   <div class="generate-page">
-    <div class="timeline-area" ref="resultsContainer" @scroll="handleScroll">
-      <div v-if="!hasAnyContent" class="empty-state">
-        <p>{{ $t('generate.noRecords') }}</p>
-        <p class="empty-hint">{{ $t('generate.noRecordsHint') }}</p>
+    <div class="timeline-area" ref="resultsContainer">
+      <div class="session-toolbar">
+        <div class="session-toolbar-copy">
+          <div class="session-toolbar-title">{{ $t('generate.sessionTitle') }}</div>
+          <p class="session-toolbar-hint">{{ $t('generate.sessionHint') }}</p>
+        </div>
+        <div class="session-toolbar-actions">
+          <button class="session-toolbar-btn session-toolbar-btn--ghost" type="button" @click="openAssetsHistory">
+            {{ $t('generate.viewHistory') }}
+          </button>
+          <button
+            class="session-toolbar-btn session-toolbar-btn--primary"
+            type="button"
+            @click="startNewConversation"
+          >
+            {{ $t('generate.newConversation') }}
+          </button>
+        </div>
       </div>
 
-      <template v-for="group in timelineGroups" :key="group.label">
-        <div class="date-divider"><span>{{ group.label }}</span></div>
-        <template v-for="gen in group.items" :key="gen.id">
-          <div class="chat-row user-row">
-            <GenerationUserBubble
-              :prompt="gen.prompt"
-              :reference-images="gen.reference_images"
-            />
-          </div>
-          <div class="chat-row ai-row">
-            <div class="ai-avatar"><img src="/images/jmlogo.png" alt="" class="ai-avatar-img" /></div>
-            <div class="bubble ai-bubble">
-              <div v-if="['generating','queued','running'].includes(gen.status)" class="generating-state">
-                <NSpin size="small" /><span>{{ getStatusText(gen.status) }}</span>
-              </div>
-              <div v-else-if="gen.status === 'failed'" class="error-state">
-                <span>❌</span><span>{{ gen.error_msg || $t('generate.failed') }}</span>
-                <NButton size="tiny" quaternary @click="regenerate(gen)">{{ $t('generate.retry') }}</NButton>
-              </div>
-              <div v-else-if="gen.images?.length" class="result-images">
-                <NImageGroup>
-                  <div class="image-grid" :class="{ single: gen.images.length === 1 }">
-                    <div v-for="(img, i) in gen.images" :key="i" class="image-item">
-                      <NImage :src="img" object-fit="contain" lazy :preview-src="img" />
-                    </div>
-                  </div>
-                </NImageGroup>
-                <div class="result-actions">
-                  <button class="result-action-btn" type="button" :title="t('generate.download')" @click="downloadAsset(gen.images[0], 0, 'png')">
-                    <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 4v10" />
-                      <path d="M8 10l4 4 4-4" />
-                      <path d="M5 19h14" />
-                    </svg>
-                  </button>
-                  <button class="result-action-btn" type="button" :title="t('generate.regenerate')" @click="regenerate(gen)">
-                    <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M20 8a8 8 0 0 0-14-3" />
-                      <path d="M6 5H3V2" />
-                      <path d="M4 16a8 8 0 0 0 14 3" />
-                      <path d="M18 19h3v3" />
-                    </svg>
-                  </button>
-                  <button class="result-action-btn" type="button" :title="t('generate.editFromThis')" @click="editImage(gen.images[0])">
-                    <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z" />
-                      <path d="M14.5 5.5l4 4" />
-                    </svg>
-                  </button>
-                  <button
-                    class="result-action-btn"
-                    :class="{ shared: gen.is_shared, loading: isShareLoading(gen) }"
-                    type="button"
-                    :title="gen.is_shared ? t('common.unshare') : t('common.share')"
-                    :disabled="isShareLoading(gen)"
-                    @click="toggleShareInspiration(gen)"
-                  >
-                    <svg v-if="gen.is_shared" class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M5 12l4 4L19 6" />
-                    </svg>
-                    <svg v-else class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 5v10" />
-                      <path d="M8 9l4-4 4 4" />
-                      <path d="M5 14v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4" />
-                    </svg>
-                  </button>
-                  <NPopover trigger="click" placement="top" :show-arrow="false">
-                    <template #trigger>
-                      <button class="result-action-btn" type="button" :title="t('generate.toolbox')">
-                        <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                        </svg>
-                      </button>
-                    </template>
-                    <div class="toolbox-menu">
-                      <button class="toolbox-menu-item" @click="openImageToSvg(gen.images[0])">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                        {{ t('generate.toSvg') }}
-                      </button>
-                    </div>
-                  </NPopover>
-                </div>
-              </div>
-              <div v-else-if="gen.video_url" class="video-result">
-                <video controls :src="gen.video_url" class="result-video" preload="metadata" />
-                <div class="result-actions">
-                  <button class="result-action-btn" type="button" :title="t('generate.download')" @click="downloadAsset(gen.video_url, 0, 'mp4')">
-                    <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 4v10" />
-                      <path d="M8 10l4 4 4-4" />
-                      <path d="M5 19h14" />
-                    </svg>
-                  </button>
-                  <button class="result-action-btn" type="button" :title="t('generate.regenerate')" @click="regenerate(gen)">
-                    <svg class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M20 8a8 8 0 0 0-14-3" />
-                      <path d="M6 5H3V2" />
-                      <path d="M4 16a8 8 0 0 0 14 3" />
-                      <path d="M18 19h3v3" />
-                    </svg>
-                  </button>
-                  <button
-                    class="result-action-btn"
-                    :class="{ shared: gen.is_shared, loading: isShareLoading(gen) }"
-                    type="button"
-                    :title="gen.is_shared ? t('common.unshare') : t('common.share')"
-                    :disabled="isShareLoading(gen)"
-                    @click="toggleShareInspiration(gen)"
-                  >
-                    <svg v-if="gen.is_shared" class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M5 12l4 4L19 6" />
-                    </svg>
-                    <svg v-else class="result-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 5v10" />
-                      <path d="M8 9l4-4 4 4" />
-                      <path d="M5 14v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div v-if="gen.credits_cost" class="credits-used">{{ $t('generate.creditsUsed', { credits: gen.credits_cost }) }}</div>
-            </div>
-          </div>
-        </template>
-      </template>
+      <div v-if="!hasAnyContent" class="empty-state">
+        <p>{{ $t('generate.sessionEmpty') }}</p>
+        <p class="empty-hint">{{ $t('generate.sessionEmptyHint') }}</p>
+      </div>
 
-      <template v-if="currentResults.length">
-        <div class="date-divider"><span>{{ $t('generate.currentSession') }}</span></div>
-        <template v-for="result in currentResults" :key="result.id">
+      <template v-for="group in sessionTimelineGroups" :key="group.label">
+        <div class="date-divider"><span>{{ group.label }}</span></div>
+        <template v-for="result in group.items" :key="result.id">
           <div class="chat-row user-row">
             <GenerationUserBubble
               :prompt="result.prompt"
@@ -745,6 +630,73 @@ const getGenerationTypeLabel = (type) => {
   flex: 1;
   overflow-y: auto;
   padding: 24px 24px 16px;
+}
+
+.session-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-tint-white-06);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.session-toolbar-copy {
+  min-width: 0;
+}
+
+.session-toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.session-toolbar-hint {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.session-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.session-toolbar-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 202, 224, 0.18);
+  background: rgba(0, 202, 224, 0.1);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.session-toolbar-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 202, 224, 0.32);
+  background: rgba(0, 202, 224, 0.16);
+}
+
+.session-toolbar-btn--ghost {
+  border-color: var(--color-tint-white-08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-toolbar-btn--primary {
+  box-shadow: 0 10px 24px rgba(0, 202, 224, 0.12);
 }
 
 .date-divider {
@@ -955,6 +907,18 @@ const getGenerationTypeLabel = (type) => {
 
 @media (max-width: 768px) {
   .timeline-area { padding: 12px 12px 10px; }
+  .session-toolbar {
+    flex-direction: column;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .session-toolbar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .session-toolbar-btn {
+    flex: 1;
+  }
   .chat-row { padding: 0; }
   .user-bubble { max-width: 85%; font-size: 14px; }
   .generate-page :deep(.generation-user-bubble__image-item) { width: min(140px, 100%); }

@@ -250,9 +250,7 @@ watch(videoModel, (newModel) => {
       videoDuration.value = 5
     }
     // Seedance 不支持参考图，清除
-    uploadedImagePreviews.value = []
-    uploadedImageUrls.value = []
-    uploadedImageBase64s.value = []
+    clearUploadedImages()
   }
 })
 
@@ -417,6 +415,32 @@ const generateWithCandidate = (candidate) => {
   sendMessage()
 }
 
+const clearUploadedImages = () => {
+  uploadedImagePreviews.value = []
+  uploadedImageUrls.value = []
+  uploadedImageBase64s.value = []
+  uploadsExpanded.value = false
+}
+
+const clearVideoFrames = () => {
+  firstFramePreview.value = null
+  firstFrameUrl.value = null
+  lastFramePreview.value = null
+  lastFrameUrl.value = null
+}
+
+const resetComposer = () => {
+  prompt.value = ''
+  clearUploadedImages()
+  clearVideoFrames()
+  optimizeRequestId.value += 1
+  optimizingPrompt.value = false
+  optimizePrimary.value = null
+  optimizeBackupPrompt.value = ''
+  optimizePanelVisible.value = false
+  nextTick(() => inputRef.value?.focus())
+}
+
 const sendMessage = () => {
   if (props.creativeMode === 'ecommerce') {
     if (!prompt.value.trim()) return
@@ -458,18 +482,7 @@ const sendMessage = () => {
   }
 
   emit('submit', payload)
-
-  // Clear inputs
-  prompt.value = ''
-  uploadedImagePreviews.value = []
-  uploadedImageUrls.value = []
-  uploadedImageBase64s.value = []
-  optimizePrimary.value = null
-  optimizeBackupPrompt.value = ''
-  optimizePanelVisible.value = false
-  uploadsExpanded.value = false
-  firstFramePreview.value = null; firstFrameUrl.value = null
-  lastFramePreview.value = null; lastFrameUrl.value = null
+  resetComposer()
 }
 
 const handleUpload = async (e) => {
@@ -582,7 +595,7 @@ const fillEditImage = async (imageUrl) => {
   nextTick(() => inputRef.value?.focus())
 }
 
-defineExpose({ fillPrompt, fillFromGeneration, fillEditImage })
+defineExpose({ fillPrompt, fillFromGeneration, fillEditImage, reset: resetComposer })
 </script>
 
 <template>
